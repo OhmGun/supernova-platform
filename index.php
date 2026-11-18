@@ -429,13 +429,13 @@ $default_tab = 'dashboard';
         <table>
           <thead>
             <tr>
-              <th onclick="sortTable('id')" id="th-id">No. ID</th>
+              <th onclick="sortTable('id')" id="th-id" style="white-space:nowrap;">No. ID</th>
               <th onclick="sortTable('client')" id="th-client">Nama Pelanggan</th>
-              <th onclick="sortTable('paket')" id="th-paket">Paket</th>
-              <th onclick="sortTable('sn')" id="th-sn">SN ONT</th>
-              <th onclick="sortTable('id_pppoe')" id="th-id_pppoe">ID PPPoE</th>
-              <th onclick="sortTable('port')" id="th-port">Port OLT</th>
-              <th onclick="sortTable('status')" id="th-status">Status</th>
+              <th onclick="sortTable('paket')" id="th-paket" style="white-space:nowrap;">Paket</th>
+              <th onclick="sortTable('sn')" id="th-sn" style="white-space:nowrap;">SN ONT</th>
+              <th onclick="sortTable('id_pppoe')" id="th-id_pppoe" style="white-space:nowrap;">ID PPPoE</th>
+              <th onclick="sortTable('port')" id="th-port" style="white-space:nowrap;">Port OLT</th>
+              <th onclick="sortTable('status')" id="th-status" style="white-space:nowrap;">Status</th>
               <th style="text-align:right">Aksi</th>
             </tr>
           </thead>
@@ -902,7 +902,7 @@ function renderCustomers() {
       <tr>
         <td style="font-family:monospace; color:var(--muted)">${esc(String(c.id_pppoe || '').split('@')[0] || '-')}</td>
         <td style="font-weight:600">${esc(c.client)}</td>
-        <td style="font-family:monospace; color:#a5b4fc">${esc(c.paket)} Mbps</td>
+        <td style="font-family:monospace; color:#a5b4fc; white-space:nowrap;">${esc(c.paket)} Mbps</td>
         <td style="font-family:monospace; color:#fcd34d">${esc(c.sn || '-')}</td>
         <td style="font-family:monospace">${esc(c.id_pppoe)}</td>
         <td style="font-family:monospace; color:${validPort ? '#6ee7b7' : '#fda4af'}">${esc(c.port)}</td>
