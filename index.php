@@ -7,7 +7,7 @@ if (!isset($_SESSION['login'])) {
 }
 $role = $_SESSION['role'] ?? 'readonly';
 $is_admin = ($role === 'admin');
-$default_tab = $is_admin ? 'broadband' : 'pelanggan';
+$default_tab = 'dashboard';
 ?>
 <!DOCTYPE html>
 <html lang="id">
@@ -18,7 +18,7 @@ $default_tab = $is_admin ? 'broadband' : 'pelanggan';
 <style>
   :root {
     --bg: #020617; --card: #0f172a; --border: #1e293b; --input: #1e293b;
-    --text: #f8fafc; --muted: #94a3b8; --primary: #4f46e5; --primary-hover: #4338ca;
+    --text: #f8fafc; --muted: #9fb0c9; --primary: #4f46e5; --primary-hover: #4338ca;
     --emerald: #10b981; --amber: #f59e0b; --rose: #f43f5e; --cyan: #06b6d4;
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -74,6 +74,24 @@ $default_tab = $is_admin ? 'broadband' : 'pelanggan';
   th.asc::after { content: ' \2191'; opacity: 1; color: #6ee7b7; }
   th.desc::after { content: ' \2193'; opacity: 1; color: #fda4af; }
   tr:hover { background: rgba(30, 41, 59, 0.5); }
+  tbody tr:nth-child(even) { background: rgba(148, 163, 184, 0.05); }
+  .table-scroll { max-height: 72vh; overflow: auto; }
+  input:focus-visible, select:focus-visible, button:focus-visible, a:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+  .skel { background: linear-gradient(90deg, #1e293b 25%, #2b3a52 50%, #1e293b 75%); background-size: 200% 100%; animation: shimmer 1.2s infinite; border-radius: 4px; height: 12px; }
+  @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+  .quick-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
+  .bar-track { background: #1e293b; height: 10px; border-radius: 6px; overflow: hidden; }
+  .bar-fill { height: 100%; border-radius: 6px; transition: width .4s ease; }
+  @media (max-width: 640px) {
+    .tabs { overflow-x: auto; flex-wrap: nowrap; -webkit-overflow-scrolling: touch; }
+    .tab-btn { white-space: nowrap; }
+    .stats-grid { grid-template-columns: repeat(2, 1fr); }
+    .form-grid { grid-template-columns: 1fr; }
+    .col-span-2 { grid-column: span 1; }
+    .grid-main { grid-template-columns: 1fr; }
+    .container { padding: 0 10px; }
+    .header-inner { flex-direction: column; align-items: flex-start; }
+  }
   .hidden { display: none !important; }
   #toast { position: fixed; bottom: 20px; right: 20px; background: var(--primary); color: #fff; padding: 10px 16px; border-radius: 8px; font-size: 12px; font-weight: 600; box-shadow: 0 10px 25px rgba(0,0,0,0.5); z-index: 99; transition: opacity 0.3s; }
   
@@ -121,13 +139,13 @@ $default_tab = $is_admin ? 'broadband' : 'pelanggan';
       </div>
     </div>
     <div class="tabs">
+      <button id="tab-dashboard" class="tab-btn<?php echo $default_tab === 'dashboard' ? ' active' : ''; ?>" onclick="switchTab('dashboard')"><i class="fa-solid fa-gauge-high"></i> Dashboard</button>
       <?php if ($is_admin): ?>
-      <button id="tab-broadband" class="tab-btn active" onclick="switchTab('broadband')">Broadband</button>
+      <button id="tab-broadband" class="tab-btn<?php echo $default_tab === 'broadband' ? ' active' : ''; ?>" onclick="switchTab('broadband')">Broadband</button>
       <button id="tab-mikrotik" class="tab-btn" onclick="switchTab('mikrotik')"><i class="fa-solid fa-network-wired"></i> MikroTik PPPoE</button>
       <?php endif; ?>
-      <button id="tab-pelanggan" class="tab-btn<?php echo $default_tab === 'pelanggan' ? ' active' : ''; ?>" onclick="switchTab('pelanggan')">Pelanggan (<span id="badge-count">0</span>)</button>
+      <button id="tab-pelanggan" class="tab-btn" onclick="switchTab('pelanggan')">Pelanggan (<span id="badge-count">0</span>)</button>
       <button id="tab-monitoring" class="tab-btn" onclick="switchTab('monitoring')"><i class="fa-solid fa-signal"></i> Monitoring</button>
-      
       <?php if ($_SESSION['role'] === 'admin'): ?>
       <button id="tab-admin" class="tab-btn" onclick="switchTab('admin')"><i class="fa-solid fa-users"></i> Kelola Admin</button>
       <?php endif; ?>
@@ -142,7 +160,45 @@ $default_tab = $is_admin ? 'broadband' : 'pelanggan';
 </header>
 
 <div class="container">
-  
+
+  <!-- TAB 0: DASHBOARD -->
+  <div id="view-dashboard" class="<?php echo $default_tab === 'dashboard' ? '' : 'hidden'; ?>">
+    <div class="stats-grid">
+      <div class="card" style="margin:0"><div style="font-size:11px; color:var(--muted)">Total Pelanggan</div><div id="dash-total" class="stat-val"><div class="skel" style="width:45%"></div></div></div>
+      <div class="card" style="margin:0"><div style="font-size:11px; color:var(--muted)">Aktif</div><div id="dash-aktif" class="stat-val" style="color:#34d399"><div class="skel" style="width:45%"></div></div></div>
+      <div class="card" style="margin:0"><div style="font-size:11px; color:var(--muted)">Isolir</div><div id="dash-isolir" class="stat-val" style="color:#fbbf24"><div class="skel" style="width:45%"></div></div></div>
+      <div class="card" style="margin:0"><div style="font-size:11px; color:var(--muted)">Cabut / Nonaktif</div><div id="dash-cabut" class="stat-val" style="color:#fda4af"><div class="skel" style="width:45%"></div></div></div>
+    </div>
+
+    <div class="card" style="margin-bottom:16px;">
+      <div class="card-header"><span class="card-title">Komposisi Status</span></div>
+      <div style="display:flex; gap:8px; margin-bottom:14px;">
+        <div class="bar-track" style="flex:2"><div class="bar-fill" id="bar-aktif" style="width:0; background:#10b981;"></div></div>
+        <div class="bar-track" style="flex:1"><div class="bar-fill" id="bar-isolir" style="width:0; background:#f59e0b;"></div></div>
+        <div class="bar-track" style="flex:1"><div class="bar-fill" id="bar-cabut" style="width:0; background:#f43f5e;"></div></div>
+      </div>
+      <div style="display:flex; gap:20px; flex-wrap:wrap; font-size:12px; color:var(--muted);">
+        <span><span style="color:#34d399;">■</span> <span id="lbl-aktif">Aktif 0</span></span>
+        <span><span style="color:#fbbf24;">■</span> <span id="lbl-isolir">Isolir 0</span></span>
+        <span><span style="color:#fda4af;">■</span> <span id="lbl-cabut">Cabut 0</span></span>
+        <span style="color:var(--muted)">Port OLT terisi: <b id="dash-port" style="color:#a5b4fc">0</b></span>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header"><span class="card-title">Aksi Cepat</span></div>
+      <div class="quick-grid">
+        <button class="btn" style="padding:16px; background:#0f172a; border:1px solid #10b981; color:#6ee7b7;" onclick="switchTab('monitoring')"><i class="fa-solid fa-signal"></i><br>Monitoring Online/Offline</button>
+        <button class="btn" style="padding:16px; background:#0f172a; border:1px solid #f59e0b; color:#fcd34d;" onclick="scanOfflineONU()"><i class="fa-solid fa-magnifying-glass"></i><br>Scan ONU Offline / LOS</button>
+        <button class="btn" style="padding:16px; background:#0f172a; border:1px solid #a5b4fc; color:#c7d2fe;" onclick="switchTab('pelanggan')"><i class="fa-solid fa-users"></i><br>Data Pelanggan</button>
+        <?php if ($is_admin): ?>
+        <button class="btn" style="padding:16px; background:#0f172a; border:1px solid #f43f5e; color:#fda4af;" onclick="window.open('api.php?action=backup_db','_blank')"><i class="fa-solid fa-download"></i><br>Backup Database</button>
+        <button class="btn" style="padding:16px; background:#0f172a; border:1px solid #a78bfa; color:#c4b5fd;" onclick="switchTab('admin')"><i class="fa-solid fa-sliders"></i><br>Pengaturan</button>
+        <?php endif; ?>
+      </div>
+    </div>
+  </div>
+
   <!-- TAB 1: BROADBAND -->
   <div id="view-broadband" class="grid-main<?php echo $default_tab === 'broadband' ? '' : ' hidden'; ?>">
     <div>
@@ -369,7 +425,7 @@ $default_tab = $is_admin ? 'broadband' : 'pelanggan';
 </div>
 
     <div class="card" style="padding:0; overflow:hidden;">
-      <div style="overflow-x:auto;">
+      <div class="table-scroll">
         <table>
           <thead>
             <tr>
@@ -411,7 +467,7 @@ $default_tab = $is_admin ? 'broadband' : 'pelanggan';
     <div id="mon-error" class="alert alert-warn hidden" style="margin-bottom:12px;"></div>
 
     <div class="card" style="padding:0; overflow:hidden;">
-      <div>
+      <div class="table-scroll">
         <table>
           <thead>
             <tr>
@@ -625,7 +681,7 @@ function jsStr(s) {
 } 
 
 function switchTab(tab) {
-  ['broadband', 'mikrotik', 'pelanggan', 'monitoring', 'admin'].forEach(t => {
+  ['dashboard', 'broadband', 'mikrotik', 'pelanggan', 'monitoring', 'admin'].forEach(t => {
     const view = document.getElementById('view-' + t);
     const btn = document.getElementById('tab-' + t);
     if(view) view.classList.add('hidden');
@@ -637,6 +693,7 @@ function switchTab(tab) {
   if(tView) tView.classList.remove('hidden');
   if(tBtn) tBtn.classList.add('active');
   
+  if (tab === 'dashboard') loadDashboard();
   if (tab === 'pelanggan') renderCustomers();
   if (tab === 'mikrotik') loadMikrotikProfiles();
   if (tab === 'monitoring') loadMonitoring();
@@ -870,6 +927,11 @@ function renderCustomers() {
         </td>
       </tr>
     `}).join('');
+
+    if (!list.length) {
+      document.getElementById('customer-tbody').innerHTML =
+        '<tr><td colspan="8" style="text-align:center; color:var(--muted); padding:28px;">Belum ada data pelanggan. Gunakan tombol "Simpan ke MySQL" di Broadband, atau menu Import di Kelola Admin.</td></tr>';
+    }
 
     document.getElementById('badge-count').textContent = dbTotal;
     document.getElementById('stat-total').textContent = dbTotal;
@@ -1437,7 +1499,7 @@ window.onload = function() {
   loadDataDB();
   generateBroadbandScript();
 
-  const allowed = <?php echo $is_admin ? "['broadband','mikrotik','pelanggan','monitoring','admin']" : "['pelanggan','monitoring']"; ?>;
+  const allowed = <?php echo $is_admin ? "['dashboard','broadband','mikrotik','pelanggan','monitoring','admin']" : "['dashboard','pelanggan','monitoring']"; ?>;
   let saved = null;
   try { saved = localStorage.getItem('supernova_active_tab'); } catch(e) {}
   const target = (saved && document.getElementById('view-' + saved) && allowed.indexOf(saved) !== -1) ? saved : '<?php echo $default_tab; ?>';
@@ -1460,6 +1522,28 @@ async function loadMikrotikProfiles() {
     }
 }
 
+// ================= DASHBOARD =================
+async function loadDashboard() {
+  try {
+    const res = await fetch('api.php?action=get_stats');
+    const j = await res.json();
+    const s = (j.stats || {});
+    const total = s.total || 0, aktif = s.aktif || 0, isolir = s.isolir || 0, cabut = s.cabut || 0;
+    document.getElementById('dash-total').textContent = total;
+    document.getElementById('dash-aktif').textContent = aktif;
+    document.getElementById('dash-isolir').textContent = isolir;
+    document.getElementById('dash-cabut').textContent = cabut;
+    document.getElementById('dash-port').textContent = s.port_terisi || 0;
+    document.getElementById('lbl-aktif').textContent = 'Aktif ' + aktif;
+    document.getElementById('lbl-isolir').textContent = 'Isolir ' + isolir;
+    document.getElementById('lbl-cabut').textContent = 'Cabut ' + cabut;
+    const base = total || 1;
+    document.getElementById('bar-aktif').style.width = Math.round(aktif / base * 100) + '%';
+    document.getElementById('bar-isolir').style.width = Math.round(isolir / base * 100) + '%';
+    document.getElementById('bar-cabut').style.width = Math.round(cabut / base * 100) + '%';
+  } catch(e) {}
+}
+
 // ================= MONITORING ONLINE/OFFLINE (MIKROTIK) =================
 function monStatusBadge(online) {
   return online
@@ -1470,7 +1554,7 @@ function monStatusBadge(online) {
 async function loadMonitoring() {
   const tbody = document.getElementById('monitor-tbody');
   if (!tbody) return;
-  tbody.innerHTML = '<tr><td colspan="8" style="color:var(--muted); text-align:center; padding:20px;">Memuat data dari MikroTik...</td></tr>';
+  tbody.innerHTML = '<tr><td colspan="8" style="padding:14px 12px;">' + '<div class="skel" style="margin:6px 0;"></div>'.repeat(5) + '</td></tr>';
   const errBox = document.getElementById('mon-error');
   if (errBox) errBox.classList.add('hidden');
   try {
@@ -1501,6 +1585,9 @@ async function loadMonitoring() {
         <td style="font-family:monospace">${esc(c.caller_id || '-')}</td>
         <td style="font-family:monospace">${esc(c.uptime || '-')}</td>
       </tr>`).join('');
+    if (!list.length) {
+      tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; color:var(--muted); padding:28px;">Belum ada data pelanggan di database.</td></tr>';
+    }
   } catch (e) {
     tbody.innerHTML = '<tr><td colspan="8" style="color:#fda4af">Error memuat data monitoring.</td></tr>';
   }

@@ -706,6 +706,23 @@ elseif ($action == 'set_status') {
     exit;
 }
 
+elseif ($action == 'get_stats') {
+    $st = array('total' => 0, 'aktif' => 0, 'isolir' => 0, 'cabut' => 0, 'port_terisi' => 0);
+    $r = $conn->query("SELECT status, COUNT(*) c FROM pelanggan GROUP BY status");
+    if ($r) while ($row = $r->fetch_assoc()) {
+        $k = strtolower($row['status']);
+        if ($k === 'aktif') $st['aktif'] = (int)$row['c'];
+        elseif ($k === 'isolir') $st['isolir'] = (int)$row['c'];
+        elseif ($k === 'cabut') $st['cabut'] = (int)$row['c'];
+    }
+    $t = $conn->query("SELECT COUNT(*) c FROM pelanggan");
+    if ($t) $st['total'] = (int)$t->fetch_assoc()['c'];
+    $p = $conn->query("SELECT COUNT(*) c FROM pelanggan WHERE port NOT IN ('BELUM ADA','-')");
+    if ($p) $st['port_terisi'] = (int)$p->fetch_assoc()['c'];
+    echo json_encode(['status' => 'success', 'stats' => $st]);
+    exit;
+}
+
 elseif ($action == 'get_audit') {
     $limit = min(500, max(10, (int)($_GET['limit'] ?? 200)));
     $res = $conn->query("SELECT id, username, action, detail, customer_id, ip, waktu FROM audit_log ORDER BY id DESC LIMIT $limit");
