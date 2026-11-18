@@ -33,27 +33,27 @@ class RouterosAPI {
             if ($this->socket) {
                 $this->loggingIn = true;
                 @stream_set_timeout($this->socket, $this->timeout);
-                $this->write('/login');
-                $this->write('=name=' . $login, false);
-                $this->write('=password=' . $password);
+                // Kirim /login + =name + =password dalam SATU kalimat (diterima RouterOS 6.49+)
+                $this->write('/login', ['=name' => $login, '=password' => $password]);
                 $resp = $this->readLoginShort();
 
                 if (isset($resp['ret']) && $resp['ret'] !== '') {
-                    // RouterOS 3.22+ (handshake md5 challenge)
+                    // RouterOS 3.22+ (handshake md5 challenge) - fallback
                     $md = md5(chr(0) . $password . pack('H*', $resp['ret']));
-                    $this->write('/login', false);
-                    $this->write('=name=' . $login, false);
-                    $this->write('=response=00' . $md);
+                    $this->sendWord('/login');
+                    $this->sendWord('=name=' . $login);
+                    $this->sendWord('=response=00' . $md);
+                    $this->sendWord('');
                     $auth = $this->readLoginShort();
                     $this->connected = empty($auth['trap']);
                     if (!$this->connected) {
                         $this->lastError = 'Login API ditolak (username/password/perizinan API salah atau sesi terkunci).';
                     }
                 } else {
-                    // RouterOS lama / tanpa challenge
-                    $this->connected = empty($resp['trap']) && !empty($resp['__done']);
+                    // Metode /login langsung: sukses bila tidak ada !trap
+                    $this->connected = empty($resp['trap']);
                     if (!$this->connected) {
-                        $this->lastError = 'Login API ditolak (cek kredensial / perizinan API atau respons timeout).';
+                        $this->lastError = 'Login API ditolak (username/password/perizinan API salah atau respons timeout).';
                     }
                 }
 
@@ -79,14 +79,17 @@ class RouterosAPI {
         while (true) {
             $word = $this->readWord();
             if ($word === false) break;
-            if (strpos($word, '=') === 0) {
+            if ($word === '') {
+                // akhir kalimat (terminator)
+                break;
+            } elseif (strpos($word, '=') === 0) {
                 $eq = strpos($word, '=', 1);
                 $key = ($eq === false) ? substr($word, 1) : substr($word, 1, $eq - 1);
                 $val = ($eq === false) ? '' : substr($word, $eq + 1);
                 $attrs[$key] = $val;
             } elseif ($word === '!done') {
                 $attrs['__done'] = true;
-                break;
+                // jangan berhenti di sini: atribut "=ret=" (challenge) bisa menyusul dalam kalimat yang sama
             } elseif ($word === '!trap' || $word === '!fatal') {
                 $attrs['trap'] = true;
                 break;
