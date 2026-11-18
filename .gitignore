@@ -1,0 +1,13 @@
+# Kredensial / config lokal (jangan ikut ter-push)
+koneksi.php
+
+# File debug
+test.php
+
+# Dependensi Composer (install ulang via `composer install`)
+/vendor/
+
+# Log & file sistem
+*.log
+.DS_Store
+Thumbs.db
