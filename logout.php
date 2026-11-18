@@ -1,5 +1,16 @@
 <?php
-session_start();
+require 'koneksi.php';
+secureSessionStart();
+
+if (!empty($_SESSION['username'])) {
+    addAudit($conn, 'LOGOUT', 'Keluar: ' . $_SESSION['username']);
+}
+
+$_SESSION = array();
+if (ini_get('session.use_cookies')) {
+    $p = session_get_cookie_params();
+    setcookie(session_name(), '', time() - 42000, $p['path'], $p['domain'], $p['secure'], $p['httponly']);
+}
 session_destroy();
 header("Location: login.php");
 exit;

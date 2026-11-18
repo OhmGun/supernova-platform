@@ -1,4 +1,5 @@
 <?php
+require 'koneksi.php';
 session_start();
 if (!isset($_SESSION['login'])) {
     header("Location: login.php");
@@ -273,11 +274,18 @@ $default_tab = $is_admin ? 'broadband' : 'pelanggan';
     </div>
 
     <div class="card" style="display:flex; flex-wrap:wrap; gap:10px; justify-content:space-between; align-items:center;">
-      <div style="display:flex; gap:10px; flex-grow:1; max-width:600px;">
-        <input type="text" id="search-input" placeholder="Cari nama pelanggan, SN ONT, ID PPPoE, atau port..." oninput="renderCustomers()">
+      <div style="display:flex; gap:10px; flex-grow:1; max-width:620px; flex-wrap:wrap;">
+        <input type="text" id="search-pelanggan" placeholder="Cari nama pelanggan, SN ONT, ID PPPoE, atau port..." onkeydown="if(event.key==='Enter') doSearch()" style="flex:1; min-width:200px;">
+        <select id="filter-status" style="max-width:140px;" onchange="renderCustomers()">
+          <option value="">Semua Status</option>
+          <option value="Aktif">Aktif</option>
+          <option value="Isolir">Isolir</option>
+          <option value="Cabut">Cabut</option>
+        </select>
         <select id="filter-port" style="max-width:180px;" onchange="renderCustomers()">
           <option value="">Semua Port</option>
         </select>
+        <button class="btn btn-sm btn-muted" onclick="doSearch()"><i class="fa-solid fa-magnifying-glass"></i> Cari</button>
       </div>
      <div id="olt-terminal-modal" class="modal-overlay hidden">
     <div class="modal-card modal-card-lg">
@@ -324,6 +332,24 @@ $default_tab = $is_admin ? 'broadband' : 'pelanggan';
     </div>
 </div>
 
+<div id="history-modal" class="modal-overlay hidden">
+  <div class="modal-card modal-card-lg">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+      <h3 style="margin:0; color:#38bdf8; display:flex; align-items:center; gap:10px;">
+        <i class="fa-solid fa-clock-rotate-left"></i>
+        <span id="history-title">Riwayat</span>
+      </h3>
+      <button class="btn btn-sm btn-rose" onclick="document.getElementById('history-modal').classList.add('hidden')">Tutup</button>
+    </div>
+    <div style="max-height:420px; overflow:auto;">
+      <table>
+        <thead><tr><th>Waktu</th><th>Aksi</th><th>Detail</th><th>Oleh</th></tr></thead>
+        <tbody id="history-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
     <button class="btn btn-amber"
         onclick="scanOfflineONU()">
         <i class="fa-solid fa-magnifying-glass"></i>
@@ -335,6 +361,10 @@ $default_tab = $is_admin ? 'broadband' : 'pelanggan';
         <i class="fa-solid fa-download"></i>
         Export CSV
     </button>
+
+    <div style="display:flex; gap:8px; align-items:center;" id="pag-controls">
+      <span id="pag-info" style="color:var(--muted); font-size:12px;"></span>
+    </div>
 
 </div>
 
@@ -349,6 +379,7 @@ $default_tab = $is_admin ? 'broadband' : 'pelanggan';
               <th onclick="sortTable('sn')" id="th-sn">SN ONT</th>
               <th onclick="sortTable('id_pppoe')" id="th-id_pppoe">ID PPPoE</th>
               <th onclick="sortTable('port')" id="th-port">Port OLT</th>
+              <th onclick="sortTable('status')" id="th-status">Status</th>
               <th style="text-align:right">Aksi</th>
             </tr>
           </thead>
@@ -434,6 +465,16 @@ $default_tab = $is_admin ? 'broadband' : 'pelanggan';
         </div>
       </div>
 
+      <!-- Notifikasi Telegram -->
+      <div class="card" style="border-left: 4px solid #38bdf8; margin-bottom:12px;">
+        <div class="card-header"><span class="card-title" style="color:#38bdf8;"><i class="fa-solid fa-paper-plane"></i> Notifikasi Telegram</span></div>
+        <div class="form-grid">
+          <div class="col-span-2"><label>Bot Token</label><input type="password" id="conf-tg-token" placeholder="123456:ABC-xyz..." autocomplete="off"></div>
+          <div class="col-span-2"><label>Chat ID</label><input type="text" id="conf-tg-chat" placeholder="-1001234567890" autocomplete="off"></div>
+          <div class="col-span-2"><button class="btn btn-outline-primary" style="width:100%; color:#38bdf8; border-color:#38bdf8;" onclick="saveTelegramSettings()">Simpan Config Telegram</button></div>
+        </div>
+      </div>
+
       <!-- Tambah User Admin -->
       <div class="card" style="border-left: 4px solid #10b981;">
         <div class="card-header"><span class="card-title" style="color:#10b981;"><i class="fa-solid fa-user-plus"></i> Tambah User Aplikasi</span></div>
@@ -450,14 +491,42 @@ $default_tab = $is_admin ? 'broadband' : 'pelanggan';
           <div class="col-span-2"><button class="btn btn-emerald" style="width:100%; padding:10px;" onclick="saveUserDB()">Tambah Akun</button></div>
         </div>
       </div>
+
+      <!-- Operasional Data -->
+      <div class="card" style="border-left: 4px solid #a78bfa; margin-bottom:12px;">
+        <div class="card-header"><span class="card-title" style="color:#a78bfa;"><i class="fa-solid fa-database"></i> Operasional Data</span></div>
+        <div style="display:flex; flex-wrap:wrap; gap:8px;">
+          <button class="btn btn-sm btn-emerald" onclick="window.open('api.php?action=backup_db','_blank')"><i class="fa-solid fa-download"></i> Backup Database</button>
+          <button class="btn btn-sm btn-rose" onclick="clearAudit()"><i class="fa-solid fa-trash"></i> Bersihkan Log</button>
+        </div>
+        <div style="margin-top:10px;">
+          <label>Import Pelanggan (format per baris: nama;pakeet;sn;idpppoe;port)</label>
+          <textarea id="import-text" rows="4" style="font-family:monospace; font-size:12px;" placeholder="Contoh:&#10;MAWAR SEJATI;50;ZTEGD6D940BB;121251720200@supernovanet;1/2/7:18"></textarea>
+          <button class="btn btn-sm btn-amber" style="width:100%; color:#000;" onclick="importCustomers()"><i class="fa-solid fa-file-import"></i> Import Data</button>
+        </div>
+      </div>
     </div>
     
     <div>
-      <div class="card" style="padding:0; overflow:hidden;">
+      <div class="card" style="padding:0; overflow:hidden; margin-bottom:14px;">
         <div style="max-height:600px; overflow-y:auto;">
           <table>
             <thead><tr><th>Username</th><th>Role Akses</th><th style="text-align:right">Aksi</th></tr></thead>
             <tbody id="users-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Audit Log -->
+      <div class="card" style="padding:0; overflow:hidden;">
+        <div style="display:flex; justify-content:space-between; align-items:center; padding:12px 14px; border-bottom:1px solid var(--border);">
+          <span class="card-title" style="margin:0; color:#6ee7b7;"><i class="fa-solid fa-book"></i> Audit Log</span>
+          <button class="btn btn-sm btn-outline-primary" onclick="loadAudit()"><i class="fa-solid fa-rotate"></i> Muat Ulang</button>
+        </div>
+        <div style="max-height:420px; overflow-y:auto;">
+          <table>
+            <thead><tr><th>Waktu</th><th>User</th><th>Aksi</th><th>Detail</th></tr></thead>
+            <tbody id="audit-tbody"></tbody>
           </table>
         </div>
       </div>
@@ -476,7 +545,15 @@ $default_tab = $is_admin ? 'broadband' : 'pelanggan';
     <div style="margin-bottom:12px;"><label>Paket (Mbps)</label><input type="number" id="edit-paket"></div>
     <div style="margin-bottom:12px;"><label>SN ONT</label><input type="text" id="edit-sn" style="color:#fcd34d"></div>
     <div style="margin-bottom:12px;"><label>ID PPPoE</label><input type="text" id="edit-id-pppoe" style="color:#6ee7b7"></div>
-    <div style="margin-bottom:20px;"><label>Port OLT</label><input type="text" id="edit-port"></div>
+    <div style="margin-bottom:12px;"><label>Port OLT</label><input type="text" id="edit-port"></div>
+    <div style="margin-bottom:20px;">
+      <label>Status</label>
+      <select id="edit-status">
+        <option value="Aktif">Aktif</option>
+        <option value="Isolir">Isolir</option>
+        <option value="Cabut">Cabut</option>
+      </select>
+    </div>
     <div style="display:flex; justify-content:flex-end; gap:10px;">
       <button class="btn btn-muted" onclick="closeEditModal()">Batal</button>
       <button class="btn btn-emerald admin-only" onclick="saveEditCustomerDB()">Simpan Perubahan</button>
@@ -515,6 +592,23 @@ let users_db = [];
 let sortCol = 'id';
 let sortAsc = false;
 let editingId = null;
+let pageDb = 1;
+let qDb = '';
+let dbTotal = 0;
+const pageSize = 50;
+const CSRF_TOKEN = '<?php echo htmlspecialchars(csrfToken(), ENT_QUOTES); ?>';
+
+// Semua request non-GET otomatis membawa token CSRF
+(function() {
+  const origFetch = window.fetch;
+  window.fetch = function(url, opts) {
+    opts = opts || {};
+    if ((opts.method || 'GET').toUpperCase() !== 'GET') {
+      opts.headers = Object.assign({}, opts.headers, { 'X-CSRF-Token': CSRF_TOKEN });
+    }
+    return origFetch.call(this, url, opts);
+  };
+})();
 
 function esc(s) {
   return String(s ?? '').replace(/[&<>"']/g, c => ({
@@ -546,18 +640,47 @@ function switchTab(tab) {
   if (tab === 'pelanggan') renderCustomers();
   if (tab === 'mikrotik') loadMikrotikProfiles();
   if (tab === 'monitoring') loadMonitoring();
-  if (tab === 'admin') { loadUsersDB(); loadOltSettings(); loadMikrotikSettings(); }
+  if (tab === 'admin') { loadUsersDB(); loadOltSettings(); loadMikrotikSettings(); loadAudit(); }
 
   try { localStorage.setItem('supernova_active_tab', tab); } catch(e) {}
 }
 
 async function loadDataDB() {
   try {
-    const res = await fetch('api.php?action=get');
-    customers = await res.json();
+    const res = await fetch('api.php?action=get&q=' + encodeURIComponent(qDb) + '&page=' + pageDb + '&limit=' + pageSize);
+    const j = await res.json();
+    customers = j.data || [];
+    const total = j.total || 0;
+    dbTotal = total;
+    const info = document.getElementById('pag-info');
+    if (info) info.textContent = total ? ((pageDb-1)*pageSize+1) + ' - ' + Math.min(total, pageDb*pageSize) + ' dari ' + total + ' data' : '0 data';
+    const pag = document.getElementById('pag-controls');
+    if (pag) {
+      const totalPages = Math.max(1, Math.ceil(total / pageSize));
+      pag.innerHTML = `
+        <button class="btn btn-sm btn-muted" onclick="pageDb = Math.max(1, pageDb-1); loadDataDB();">← Sebelum</button>
+        <span style="color:var(--muted);font-size:12px;">${totalPages > 1 ? 'Halaman ' + pageDb + '/' + totalPages : ''}</span>
+        <button class="btn btn-sm btn-muted" onclick="pageDb = ${Math.min(totalPages, pageDb + 1)}; loadDataDB();">Berikut →</button>`;
+    }
     renderCustomers();
     checkConflictOnly();
   } catch(e) { console.error("Gagal load dari DB", e); }
+}
+
+function doSearch() {
+  qDb = document.getElementById('search-pelanggan').value.trim();
+  pageDb = 1;
+  loadDataDB();
+}
+
+function statusBadge(st) {
+  const map = {
+    'Aktif':  ['Aktif', '#34d399', '#10b981', 'rgba(16,185,129,0.15)'],
+    'Isolir': ['Isolir', '#fcd34d', '#f59e0b', 'rgba(245,158,11,0.12)'],
+    'Cabut':  ['Cabut', '#fda4af', '#f43f5e', 'rgba(244,63,94,0.12)']
+  };
+  const m = map[st] || [st, '#94a3b8', '#64748b', 'rgba(100,116,139,0.15)'];
+  return `<span class="badge" style="color:${m[1]};border-color:${m[2]};background:${m[3]};">${esc(m[0])}</span>`;
 }
 
 function sortTable(column) {
@@ -568,7 +691,7 @@ function sortTable(column) {
 }
 
 function updateSortIcons() {
-  ['id', 'client', 'paket', 'sn', 'id_pppoe', 'port'].forEach(col => {
+  ['id', 'client', 'paket', 'sn', 'id_pppoe', 'port', 'status'].forEach(col => {
     const th = document.getElementById(`th-${col}`);
     if(th) {
         th.classList.remove('asc', 'desc');
@@ -690,8 +813,8 @@ async function createMikrotikSecret() {
 
 function renderCustomers() {
   try {
-    const q = document.getElementById('search-input').value.toLowerCase();
     const pf = document.getElementById('filter-port').value;
+    const sf = document.getElementById('filter-status').value;
     const sel = document.getElementById('filter-port');
 
     if (sel.options.length <= 1) {
@@ -702,12 +825,9 @@ function renderCustomers() {
     }
 
     let list = customers.filter(c => {
-      const mq = (c.client && c.client.toLowerCase().includes(q)) || 
-                 (c.id_pppoe && c.id_pppoe.toLowerCase().includes(q)) || 
-                 (c.port && c.port.toLowerCase().includes(q)) ||
-                 (c.sn && c.sn.toLowerCase().includes(q));
       const mp = !pf || (c.port && c.port.startsWith(pf + ':'));
-      return mq && mp;
+      const ms = !sf || c.status === sf;
+      return mp && ms;
     });
 
     list.sort((a, b) => {
@@ -729,6 +849,13 @@ function renderCustomers() {
         <td style="font-family:monospace; color:#fcd34d">${esc(c.sn || '-')}</td>
         <td style="font-family:monospace">${esc(c.id_pppoe)}</td>
         <td style="font-family:monospace; color:${validPort ? '#6ee7b7' : '#fda4af'}">${esc(c.port)}</td>
+        <td>${statusBadge(c.status)}
+            <select class="admin-only" style="width:auto; padding:2px 4px; font-size:11px; margin-left:6px;" onchange="setCustomerStatus(${c.id}, this.value)">
+              <option value="Aktif"${c.status === 'Aktif' ? ' selected' : ''}>Aktif</option>
+              <option value="Isolir"${c.status === 'Isolir' ? ' selected' : ''}>Isolir</option>
+              <option value="Cabut"${c.status === 'Cabut' ? ' selected' : ''}>Cabut</option>
+            </select>
+        </td>
         <td style="text-align:right; min-width: 250px;">
           ${validPort ? `
             <button class="btn btn-sm btn-outline-primary" title="Cek Status Koneksi" onclick="reqOLT('status', '${jsStr(c.port)}')"><i class="fa-solid fa-wifi"></i></button>
@@ -736,20 +863,52 @@ function renderCustomers() {
             <button class="btn btn-sm btn-rose admin-only" title="Restart ONT Pelanggan" onclick="reqOLT('reboot', '${jsStr(c.port)}')"><i class="fa-solid fa-rotate-right"></i></button>
           ` : ''}
           <button class="btn btn-sm btn-outline-primary" style="margin-left:8px;" title="Muat Parameter" onclick="loadCustomer(${c.id})"><i class="fa-solid fa-arrow-up-right-from-square"></i></button>
+          <button class="btn btn-sm btn-outline-primary" title="Riwayat" onclick="showHistory(${c.id})"><i class="fa-solid fa-clock-rotate-left"></i></button>
           <button class="btn btn-sm btn-amber admin-only" title="Edit" onclick="openEditModal(${c.id})"><i class="fa-solid fa-pen"></i></button>
           <button class="btn btn-sm btn-rose admin-only" title="Hapus" onclick="deleteCustomer(${c.id})"><i class="fa-solid fa-trash"></i></button>
         </td>
       </tr>
     `}).join('');
 
-    document.getElementById('badge-count').textContent = customers.length;
-    document.getElementById('stat-total').textContent = customers.length;
-    const aktif = customers.filter(c => c.port && c.port.includes(':')).length;
+    document.getElementById('badge-count').textContent = dbTotal;
+    document.getElementById('stat-total').textContent = dbTotal;
+    const aktif = list.filter(c => c.status === 'Aktif').length;
     document.getElementById('stat-aktif').textContent = aktif;
-    document.getElementById('stat-cabut').textContent = customers.length - aktif;
-    const avg = customers.reduce((a, c) => a + (Number(c.paket) || 0), 0) / (customers.length || 1);
+    document.getElementById('stat-cabut').textContent = list.length - aktif;
+    const avg = list.reduce((a, c) => a + (Number(c.paket) || 0), 0) / (list.length || 1);
     document.getElementById('stat-avg').textContent = avg.toFixed(1) + ' Mbps';
   } catch(e) {}
+}
+
+async function setCustomerStatus(id, status) {
+  const c = customers.find(x => x.id == id);
+  if (!c) return;
+  const label = {Aktif:'AKTIFKAN kembali layanannya?', Isolir:'ISOLIR (blokir layanan)?', Cabut:'CABUT (hapus layanan)?'}[status] || '';
+  if (!confirm(c.client + ' — ' + label)) { renderCustomers(); return; }
+  try {
+    const res = await fetch('api.php?action=set_status', { method: 'POST', body: JSON.stringify({ id, status }) });
+    const j = await res.json();
+    showToast(j.message || (j.status === 'success' ? 'Status diubah' : 'Gagal'));
+    loadDataDB();
+  } catch(e) { showToast('Error: ' + e); }
+}
+
+async function showHistory(id) {
+  try {
+    const res = await fetch('api.php?action=get_history&id=' + id);
+    const j = await res.json();
+    const box = document.getElementById('history-tbody');
+    const c = customers.find(x => x.id == id);
+    document.getElementById('history-title').textContent = 'Riwayat — ' + (c ? c.client : '#' + id);
+    box.innerHTML = (j.data || []).length ? j.data.map(h => `
+      <tr>
+        <td style="color:var(--muted); font-family:monospace; white-space:nowrap;">${esc(h.waktu)}</td>
+        <td><span class="badge">${esc(h.action)}</span></td>
+        <td style="font-family:monospace;">${esc(h.detail)}</td>
+        <td style="color:var(--muted)">${esc(h.username)}</td>
+      </tr>`).join('') : '<tr><td colspan="4" style="color:var(--muted); text-align:center;">Belum ada riwayat</td></tr>';
+    document.getElementById('history-modal').classList.remove('hidden');
+  } catch(e) { showToast('Error memuat riwayat'); }
 }
 
 function setTerminal(title, loading) {
@@ -767,6 +926,22 @@ function copyTerminal() {
   const el = document.getElementById('olt-terminal-output');
   if (!el) return;
   navigator.clipboard.writeText(el.textContent).then(() => showToast('Hasil disalin!'));
+}
+
+// Pewarnaan hasil perintah redaman OLT (nilai dBm di-highlight sesuai kualitas)
+function colorizePower(text) {
+  const safe = esc(text);
+  let out = safe.replace(/(-?\d+(?:\.\d+)?)\s*(dBm|dB)/gi, (m, num, unit) => {
+    const v = parseFloat(num);
+    let color = '#fda4af';   // buruk (di bawah -25 dBm) default merah
+    if (v >= -8 && v <= -25) color = '#4ade80';   // bagus
+    else if (v > -8 && v <= -1) color = '#fcd34d'; // kelebihan daya (kuning/warning)
+    return `<span style="color:${color}; font-weight:700;">${num} ${unit}</span>`;
+  });
+  if (/att|rx|receive|power|dBm/i.test(text)) {
+    out += '\n\n<span style="color:#64748b;">Referensi RX Power ONU: -8 s/d -25 dBm = baik (hijau) | di atas -8 = kelebihan daya (kuning) | di bawah -25 = buruk/LOS (merah)</span>';
+  }
+  return out;
 }
 
 const TERM_TITLES = {
@@ -795,9 +970,14 @@ async function reqOLT(action, port)
         });
         let json = await res.json();
         out.classList.remove('term-loading');
-        out.textContent = json.status === 'success'
+        const rawData = json.status === 'success'
             ? (json.data || json.message || '(Respons kosong)')
             : 'Gagal: ' + (json.message || 'respons tidak valid');
+        if (action === 'power') {
+            out.innerHTML = colorizePower(rawData);
+        } else {
+            out.textContent = rawData;
+        }
     }
     catch (e) {
         if (out) {
@@ -982,6 +1162,7 @@ function openEditModal(id) {
   document.getElementById('edit-sn').value = c.sn || '-';
   document.getElementById('edit-id-pppoe').value = c.id_pppoe;
   document.getElementById('edit-port').value = c.port;
+  document.getElementById('edit-status').value = c.status || 'Aktif';
   document.getElementById('edit-modal').classList.remove('hidden');
 }
 
@@ -994,7 +1175,8 @@ async function saveEditCustomerDB() {
     paket: Number(document.getElementById('edit-paket').value) || 30,
     sn: document.getElementById('edit-sn').value.trim().toUpperCase() || '-',
     id_pppoe: document.getElementById('edit-id-pppoe').value.trim(),
-    port: document.getElementById('edit-port').value.trim()
+    port: document.getElementById('edit-port').value.trim(),
+    status: document.getElementById('edit-status').value
   };
   try {
     let res = await fetch('api.php?action=update', { method: 'POST', body: JSON.stringify(data) });
@@ -1040,6 +1222,8 @@ async function loadMikrotikSettings() {
         document.getElementById('conf-mk-user').value = s.mikrotik_user || '';
         const sslBox = document.getElementById('conf-mk-ssl');
         if (sslBox) sslBox.checked = (s.mikrotik_ssl === '1' || s.mikrotik_ssl === 'true');
+        if (document.getElementById('conf-tg-token')) document.getElementById('conf-tg-token').value = s.telegram_bot_token || '';
+        if (document.getElementById('conf-tg-chat')) document.getElementById('conf-tg-chat').value = s.telegram_chat_id || '';
     } catch(e) {}
 }
 async function saveMikrotikSettings() {
@@ -1055,6 +1239,66 @@ async function saveMikrotikSettings() {
         let json = await res.json();
         if (json.status === 'success') { showToast('Config MikroTik Disimpan!'); document.getElementById('conf-mk-pass').value = ''; }
     } catch(e) { alert("Gagal simpan config mikrotik"); }
+}
+
+async function saveTelegramSettings() {
+    const data = {
+        telegram_bot_token: document.getElementById('conf-tg-token').value.trim(),
+        telegram_chat_id: document.getElementById('conf-tg-chat').value.trim()
+    };
+    try {
+        let res = await fetch('api.php?action=update_telegram', { method: 'POST', body: JSON.stringify(data) });
+        let json = await res.json();
+        showToast(json.status === 'success' ? 'Config Telegram Disimpan!' : 'Gagal: ' + json.message);
+    } catch(e) { alert('Gagal simpan config telegram'); }
+}
+
+async function loadAudit() {
+  try {
+    const res = await fetch('api.php?action=get_audit');
+    const j = await res.json();
+    const tbody = document.getElementById('audit-tbody');
+    if (!tbody) return;
+    tbody.innerHTML = (j.data || []).length ? j.data.map(a => `
+      <tr>
+        <td style="color:var(--muted); font-family:monospace; white-space:nowrap;">${esc(a.waktu)}</td>
+        <td style="font-family:monospace;">${esc(a.username)}</td>
+        <td><span class="badge">${esc(a.action)}</span></td>
+        <td style="font-family:monospace;">${esc(a.detail)}${a.ip ? ' <span style="color:#64748b">(' + esc(a.ip) + ')</span>' : ''}</td>
+      </tr>`).join('') : '<tr><td colspan="4" style="color:var(--muted); text-align:center;">Belum ada aktivitas</td></tr>';
+  } catch(e) {}
+}
+
+async function clearAudit() {
+  if (!confirm('Yakin menghapus seluruh audit log?')) return;
+  try {
+    const res = await fetch('api.php?action=clear_audit', { method: 'POST' });
+    const j = await res.json();
+    showToast(j.status === 'success' ? 'Log dibersihkan' : 'Gagal');
+    loadAudit();
+  } catch(e) {}
+}
+
+async function importCustomers() {
+  const text = document.getElementById('import-text').value.trim();
+  if (!text) return alert('Tempel data terlebih dahulu.');
+  const rows = [];
+  text.split(/\r?\n/).forEach(line => {
+    line = line.trim();
+    if (!line) return;
+    const p = line.split(';').map(x => x.trim());
+    if (p.length < 2) return;
+    rows.push({ client: p[0], paket: p[1], sn: p[2] || '-', id_pppoe: p[3] || '', port: p[4] || 'BELUM ADA' });
+  });
+  if (!rows.length) return alert('Format tidak dikenali.');
+  if (!confirm('Import ' + rows.length + ' baris? Data dengan ID PPPoE duplikat akan dilewati.')) return;
+  try {
+    const res = await fetch('api.php?action=import_customers', { method: 'POST', body: JSON.stringify({ rows }) });
+    const j = await res.json();
+    showToast('Import selesai: ' + (j.sukses||0) + ' sukses, ' + (j.gagal||0) + ' gagal');
+    document.getElementById('import-text').value = '';
+    loadDataDB();
+  } catch(e) { showToast('Error import'); }
 }
 
 // User Admin Management

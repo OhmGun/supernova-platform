@@ -1,19 +1,27 @@
 <?php 
-session_start();
 error_reporting(E_ALL);
 ini_set('display_errors', 0); // Matikan output error agar tidak merusak JSON
 ini_set('log_errors', 1);
-if (!isset($_SESSION['login'])) {
+require 'koneksi.php';
+secureSessionStart();
+header('Content-Type: application/json');
+if (empty($_SESSION['login'])) {
     http_response_code(401);
     echo json_encode(['status' => 'error', 'message' => 'Sesi berakhir, silakan login ulang.']);
     exit;
 }
-
-header('Content-Type: application/json');
-require 'koneksi.php';
 require_once __DIR__ . '/vendor/autoload.php';
 
 use phpseclib4\Net\SSH2;
+
+$role = isset($_SESSION['role']) ? $_SESSION['role'] : 'readonly';
+$is_admin = ($role === 'admin');
+
+// Pastikan semua pelanggan punya kolom status (Aktif / Isolir / Cabut)
+$colCheck = $conn->query("SHOW COLUMNS FROM pelanggan LIKE 'status'");
+if (!$colCheck || $colCheck->num_rows === 0) {
+    $conn->query("ALTER TABLE pelanggan ADD COLUMN status VARCHAR(20) NOT NULL DEFAULT 'Aktif'");
+}
 
 // Matikan error reporting HTML agar tidak merusak format JSON
 mysqli_report(MYSQLI_REPORT_OFF);
@@ -181,12 +189,25 @@ SQL;
 }
 
 $action = isset($_GET['action']) ? $_GET['action'] : '';
-$role = isset($_SESSION['role']) ? $_SESSION['role'] : 'readonly';
 
-$write_actions = ['add', 'update', 'delete', 'add_user', 'update_user', 'delete_user', 'olt_reboot', 'update_settings', 'update_mk_settings'];
-if (in_array($action, $write_actions) && $role !== 'admin') {
-    echo json_encode(['status' => 'error', 'message' => 'AKSES DITOLAK! Hanya Admin yang boleh melakukan aksi ini.']);
+// Aksi admin: penulisan (butuh CSRF) + membaca sensitif (audit/backup)
+$admin_write = ['add', 'update', 'delete', 'add_user', 'update_user', 'delete_user', 'olt_reboot', 'update_settings', 'update_mk_settings', 'set_status', 'import_customers', 'clear_audit', 'update_telegram'];
+$admin_read  = ['get_audit', 'backup_db'];
+
+if (in_array($action, $admin_read) && !$is_admin) {
+    echo json_encode(['status' => 'error', 'message' => 'AKSES DITOLAK! Hanya Admin yang dibolehkan.']);
     exit;
+}
+if (in_array($action, $admin_write)) {
+    if (!$is_admin) {
+        echo json_encode(['status' => 'error', 'message' => 'AKSES DITOLAK! Hanya Admin yang boleh melakukan aksi ini.']);
+        exit;
+    }
+    $csrf = isset($_SERVER['HTTP_X_CSRF_TOKEN']) ? $_SERVER['HTTP_X_CSRF_TOKEN'] : '';
+    if (!csrfCheck($csrf)) {
+        echo json_encode(['status' => 'error', 'message' => 'Token keamanan tidak valid (CSRF). Muat ulang halaman dan coba lagi.']);
+        exit;
+    }
 }
 if ($action == 'olt_test') {
     $res = execute_zte_ssh([
@@ -205,6 +226,38 @@ if ($action == 'olt_test') {
 // ==============================================
 // CORE FUNCTION: KONEKSI SSH KE OLT / ROUTER
 // ==============================================
+// Validasi & normalisasi data pelanggan (server-side). Return false + $err jika tidak valid.
+function normalizeCustomer($data, &$err) {
+    $err = '';
+    $client   = trim((string)($data['client'] ?? ''));
+    $paket    = (int)($data['paket'] ?? 0);
+    $sn       = strtoupper(trim((string)($data['sn'] ?? '')));
+    $id_pppoe = trim((string)($data['id_pppoe'] ?? ''));
+    $port     = trim((string)($data['port'] ?? ''));
+    $status   = in_array(($data['status'] ?? ''), ['Aktif', 'Isolir', 'Cabut'], true) ? $data['status'] : 'Aktif';
+
+    if ($client === '' || strlen($client) > 100) { $err = 'Nama pelanggan wajib diisi (maks 100 karakter).'; return false; }
+    if ($paket < 1 || $paket > 100000) { $err = 'Paket tidak valid (1–100000 Mbps).'; return false; }
+    if ($sn !== '' && !preg_match('/^[A-Z0-9\-]{8,20}$/', $sn)) { $err = 'Format SN ONT tidak valid (alphanumerik 8-20, contoh ZTEGD6D940BB).'; return false; }
+    if ($id_pppoe === '' || strlen($id_pppoe) > 80) { $err = 'ID PPPoE wajib diisi (maks 80).'; return false; }
+    if ($port !== '' && strtoupper($port) !== 'BELUM ADA' && strtoupper($port) !== '-' && !preg_match('#^\d+/\d+/\d+:\d+$#', $port)) { $err = 'Format port OLT tidak valid (contoh 1/2/8:1).'; return false; }
+
+    if ($sn === '') $sn = '-';
+    if ($port === '' || strtoupper($port) === '-' || strtoupper($port) === 'BELUM ADA') $port = 'BELUM ADA';
+    return ['client' => $client, 'paket' => $paket, 'sn' => $sn, 'id_pppoe' => $id_pppoe, 'port' => $port, 'status' => $status];
+}
+
+// Dekripsi otomatis field kredensial (fallback plaintext lama).
+function decryptConf($conf, $keys) {
+    foreach ($keys as $k) {
+        if (isset($conf[$k]) && $conf[$k] !== '') {
+            $d = app_decrypt($conf[$k]);
+            if ($d !== null) $conf[$k] = $d;
+        }
+    }
+    return $conf;
+}
+
 function execute_zte_ssh($cmd_array)
 {
     global $conn;
@@ -219,6 +272,7 @@ function execute_zte_ssh($cmd_array)
     while ($r = $res->fetch_assoc()) {
         $conf[$r['setting_key']] = $r['setting_value'];
     }
+    $conf = decryptConf($conf, ['olt_pass']);
 
     try {
 
@@ -270,6 +324,7 @@ if ($action == 'get_settings') {
     if ($res) {
         while($row = $res->fetch_assoc()) { $data[$row['setting_key']] = $row['setting_value']; }
     }
+    $data = decryptConf($data, ['olt_pass', 'mikrotik_pass']);
     echo json_encode($data);
 }
 elseif ($action == 'update_settings') {
@@ -280,9 +335,10 @@ elseif ($action == 'update_settings') {
             $conn->query("UPDATE settings SET setting_value='$val' WHERE setting_key='$key'");
         }
         if (!empty($data['olt_pass'])) {
-            $val = $conn->real_escape_string($data['olt_pass']);
+            $val = $conn->real_escape_string(app_encrypt($data['olt_pass']));
             $conn->query("UPDATE settings SET setting_value='$val' WHERE setting_key='olt_pass'");
         }
+        addAudit($conn, 'UBAH_SETTING', 'Konfigurasi OLT diperbarui');
         echo json_encode(['status' => 'success']);
     }
 }
@@ -294,11 +350,12 @@ elseif ($action == 'update_mk_settings') {
             $conn->query("INSERT INTO settings (setting_key, setting_value) VALUES ('$key', '$val') ON DUPLICATE KEY UPDATE setting_value='$val'");
         }
         if (!empty($data['mikrotik_pass'])) {
-            $val = $conn->real_escape_string($data['mikrotik_pass']);
+            $val = $conn->real_escape_string(app_encrypt($data['mikrotik_pass']));
             $conn->query("INSERT INTO settings (setting_key, setting_value) VALUES ('mikrotik_pass', '$val') ON DUPLICATE KEY UPDATE setting_value='$val'");
         }
         $ssl = (!empty($data['mikrotik_ssl']) && ($data['mikrotik_ssl'] === '1' || $data['mikrotik_ssl'] === 'true')) ? '1' : '0';
         $conn->query("INSERT INTO settings (setting_key, setting_value) VALUES ('mikrotik_ssl', '$ssl') ON DUPLICATE KEY UPDATE setting_value='$ssl'");
+        addAudit($conn, 'UBAH_SETTING', 'Konfigurasi MikroTik API diperbarui');
         echo json_encode(['status' => 'success']);
     }
 }
@@ -354,6 +411,9 @@ elseif ($action == 'olt_reboot') {
         "reboot",
         "exit"
     ]);
+
+    addAudit($conn, 'REBOOT_ONT', 'Restart ONU port ' . $port);
+    sendTelegram($conn, "🔄 Restart ONU\nPort OLT: $port\nOleh: " . ($_SESSION['username'] ?? '?'));
 
     echo json_encode([
         'status' => 'success',
@@ -426,54 +486,70 @@ elseif ($action == 'scan_offline') {
 }
 
 elseif ($action == 'get') {
-    $result = $conn->query("SELECT * FROM pelanggan");
+    $q     = isset($_GET['q']) ? trim($_GET['q']) : '';
+    $page  = max(1, (int)($_GET['page'] ?? 1));
+    $limit = min(200, max(5, (int)($_GET['limit'] ?? 50)));
+    $offset = ($page - 1) * $limit;
+
+    $where = '';
+    if ($q !== '') {
+        $like = '%' . $conn->real_escape_string($q) . '%';
+        $where = "WHERE id_pppoe LIKE '$like' OR client LIKE '$like' OR port LIKE '$like' OR sn LIKE '$like' OR status LIKE '$like'";
+    }
+    $total = 0;
+    $tr = $conn->query("SELECT COUNT(*) AS c FROM pelanggan $where");
+    if ($tr) $total = (int)$tr->fetch_assoc()['c'];
+
+    $result = $conn->query("SELECT * FROM pelanggan $where ORDER BY id ASC LIMIT $offset, $limit");
     $data = array();
     if ($result) {
         while($row = $result->fetch_assoc()) {
-            // Normalisasi nama kolom agar selalu terbaca oleh JavaScript
             $data[] = array(
-                'id'       => (int)($row['id'] ?? $row['no'] ?? 0),
+                'id'       => (int)($row['id'] ?? 0),
                 'client'   => $row['client'] ?? '',
                 'paket'    => (int)($row['paket'] ?? 30),
-                'sn'       => $row['sn'] ?? $row['sn_ont'] ?? '-',
+                'sn'       => $row['sn'] ?? '-',
                 'id_pppoe' => $row['id_pppoe'] ?? '-',
-                'port'     => $row['port'] ?? $row['port_olt'] ?? 'BELUM ADA'
+                'port'     => $row['port'] ?? 'BELUM ADA',
+                'status'   => $row['status'] ?? 'Aktif'
             );
         }
     }
-    echo json_encode($data);
+    echo json_encode(['total' => $total, 'page' => $page, 'limit' => $limit, 'data' => $data]);
 } 
 elseif ($action == 'add') {
     $data = json_decode(file_get_contents('php://input'), true);
-    if ($data) {
-        $client = $data['client'];
-        $paket  = (int)$data['paket'];
-        $sn     = $data['sn'];
-        $id_pppoe = $data['id_pppoe'];
-        $port   = $data['port'];
-        $stmt = $conn->prepare("INSERT INTO pelanggan (client, paket, sn, id_pppoe, port) VALUES (?, ?, ?, ?, ?)");
-        if ($stmt) {
-            $stmt->bind_param('sisss', $client, $paket, $sn, $id_pppoe, $port);
-            if ($stmt->execute()) echo json_encode(['status' => 'success']);
-            else echo json_encode(['status' => 'error', 'message' => $conn->error]);
-            $stmt->close();
-        } else echo json_encode(['status' => 'error', 'message' => $conn->error]);
+    $norm = normalizeCustomer($data, $err);
+    if (!$norm) {
+        echo json_encode(['status' => 'error', 'message' => $err]);
+        exit;
     }
+    $stmt = $conn->prepare("INSERT INTO pelanggan (client, paket, sn, id_pppoe, port, status) VALUES (?, ?, ?, ?, ?, ?)");
+    if ($stmt) {
+        $stmt->bind_param('sissss', $norm['client'], $norm['paket'], $norm['sn'], $norm['id_pppoe'], $norm['port'], $norm['status']);
+        if ($stmt->execute()) {
+            addAudit($conn, 'TAMBAH_PELANGGAN', $norm['client'] . ' | ' . $norm['id_pppoe'], $stmt->insert_id);
+            echo json_encode(['status' => 'success']);
+        } else echo json_encode(['status' => 'error', 'message' => $conn->error]);
+        $stmt->close();
+    } else echo json_encode(['status' => 'error', 'message' => $conn->error]);
 } 
 elseif ($action == 'update') {
     $data = json_decode(file_get_contents('php://input'), true);
     if (isset($data['id'])) {
         $id = (int)$data['id'];
-        $client = $data['client'];
-        $paket  = (int)$data['paket'];
-        $sn     = $data['sn'];
-        $id_pppoe = $data['id_pppoe'];
-        $port   = $data['port'];
-        $stmt = $conn->prepare("UPDATE pelanggan SET client=?, paket=?, sn=?, id_pppoe=?, port=? WHERE id=?");
+        $norm = normalizeCustomer($data, $err);
+        if (!$norm) {
+            echo json_encode(['status' => 'error', 'message' => $err]);
+            exit;
+        }
+        $stmt = $conn->prepare("UPDATE pelanggan SET client=?, paket=?, sn=?, id_pppoe=?, port=?, status=? WHERE id=?");
         if ($stmt) {
-            $stmt->bind_param('sisssi', $client, $paket, $sn, $id_pppoe, $port, $id);
-            if ($stmt->execute()) echo json_encode(['status' => 'success']);
-            else echo json_encode(['status' => 'error', 'message' => $conn->error]);
+            $stmt->bind_param('sissssi', $norm['client'], $norm['paket'], $norm['sn'], $norm['id_pppoe'], $norm['port'], $norm['status'], $id);
+            if ($stmt->execute()) {
+                addAudit($conn, 'UBAH_PELANGGAN', $norm['client'] . ' | ' . $norm['id_pppoe'], $id);
+                echo json_encode(['status' => 'success']);
+            } else echo json_encode(['status' => 'error', 'message' => $conn->error]);
             $stmt->close();
         } else echo json_encode(['status' => 'error', 'message' => $conn->error]);
     }
@@ -482,11 +558,15 @@ elseif ($action == 'delete') {
     $data = json_decode(file_get_contents('php://input'), true);
     if (isset($data['id'])) {
         $id = (int)$data['id'];
+        $nm = $conn->query("SELECT client FROM pelanggan WHERE id=$id");
+        $clientName = ($nm && $nm->num_rows) ? $nm->fetch_assoc()['client'] : 'id ' . $id;
         $stmt = $conn->prepare("DELETE FROM pelanggan WHERE id = ?");
         if ($stmt) {
             $stmt->bind_param('i', $id);
-            if ($stmt->execute()) echo json_encode(['status' => 'success']);
-            else echo json_encode(['status' => 'error', 'message' => $conn->error]);
+            if ($stmt->execute()) {
+                addAudit($conn, 'HAPUS_PELANGGAN', $clientName, $id);
+                echo json_encode(['status' => 'success']);
+            } else echo json_encode(['status' => 'error', 'message' => $conn->error]);
             $stmt->close();
         } else echo json_encode(['status' => 'error', 'message' => $conn->error]);
     }
@@ -501,13 +581,15 @@ elseif ($action == 'get_users') {
 elseif ($action == 'add_user') {
     $data = json_decode(file_get_contents('php://input'), true);
     if ($data) {
-        $u = $data['username'];
-        $r = $data['role'];
+        $u = trim((string)($data['username'] ?? ''));
+        $r = ($data['role'] ?? 'readonly') === 'admin' ? 'admin' : 'readonly';
+        if ($u === '' || strlen($u) > 50) { echo json_encode(['status' => 'error', 'message' => 'Username wajib diisi (maks 50).']); exit; }
+        if (empty($data['password']) || strlen($data['password']) < 6) { echo json_encode(['status' => 'error', 'message' => 'Password minimal 6 karakter.']); exit; }
         $p = password_hash($data['password'], PASSWORD_DEFAULT);
         $stmt = $conn->prepare("INSERT INTO users (username, password, role) VALUES (?, ?, ?)");
         if ($stmt) {
             $stmt->bind_param('sss', $u, $p, $r);
-            if ($stmt->execute()) echo json_encode(['status' => 'success']);
+            if ($stmt->execute()) { addAudit($conn, 'TAMBAH_USER', 'User: ' . $u . ' (' . $r . ')'); echo json_encode(['status' => 'success']); }
             else echo json_encode(['status' => 'error', 'message' => $conn->error]);
             $stmt->close();
         } else echo json_encode(['status' => 'error', 'message' => $conn->error]);
@@ -517,10 +599,14 @@ elseif ($action == 'update_user') {
     $data = json_decode(file_get_contents('php://input'), true);
     if (isset($data['id'])) {
         $id = (int)$data['id'];
-        $u = $data['username'];
-        $r = $data['role'];
+        $u = trim((string)($data['username'] ?? ''));
+        $r = ($data['role'] ?? 'readonly') === 'admin' ? 'admin' : 'readonly';
+        if ($u === '' || strlen($u) > 50) { echo json_encode(['status' => 'error', 'message' => 'Username wajib diisi (maks 50).']); exit; }
+        $old = $conn->query("SELECT id, username FROM users WHERE id=$id");
+        $oldName = ($old && $old->num_rows) ? $old->fetch_assoc()['username'] : 'id ' . $id;
         $ok = false;
         if (!empty($data['password'])) {
+            if (strlen($data['password']) < 6) { echo json_encode(['status' => 'error', 'message' => 'Password minimal 6 karakter.']); exit; }
             $p = password_hash($data['password'], PASSWORD_DEFAULT);
             $stmt = $conn->prepare("UPDATE users SET username=?, password=?, role=? WHERE id=?");
             if ($stmt) { $stmt->bind_param('sssi', $u, $p, $r, $id); $ok = $stmt->execute(); $stmt->close(); }
@@ -528,7 +614,7 @@ elseif ($action == 'update_user') {
             $stmt = $conn->prepare("UPDATE users SET username=?, role=? WHERE id=?");
             if ($stmt) { $stmt->bind_param('ssi', $u, $r, $id); $ok = $stmt->execute(); $stmt->close(); }
         }
-        if ($ok) echo json_encode(['status' => 'success']);
+        if ($ok) { addAudit($conn, 'UBAH_USER', $oldName . ' -> ' . $u); echo json_encode(['status' => 'success']); }
         else echo json_encode(['status' => 'error', 'message' => $conn->error]);
     }
 }
@@ -536,15 +622,183 @@ elseif ($action == 'delete_user') {
     $data = json_decode(file_get_contents('php://input'), true);
     if (isset($data['id'])) {
         $id = (int)$data['id'];
+        $me = $conn->query("SELECT id FROM users WHERE username='" . $conn->real_escape_string($_SESSION['username']) . "'");
+        $meId = ($me && $me->num_rows) ? (int)$me->fetch_assoc()['id'] : 0;
+        if ($id === $meId) {
+            echo json_encode(['status' => 'error', 'message' => 'Tidak dapat menghapus akun yang sedang Anda gunakan.']);
+            exit;
+        }
+        $nm = $conn->query("SELECT username FROM users WHERE id=$id");
+        $uname = ($nm && $nm->num_rows) ? $nm->fetch_assoc()['username'] : 'id ' . $id;
         $stmt = $conn->prepare("DELETE FROM users WHERE id = ?");
         if ($stmt) {
             $stmt->bind_param('i', $id);
-            if ($stmt->execute()) echo json_encode(['status' => 'success']);
+            if ($stmt->execute()) { addAudit($conn, 'HAPUS_USER', 'User: ' . $uname); echo json_encode(['status' => 'success']); }
             else echo json_encode(['status' => 'error', 'message' => $conn->error]);
             $stmt->close();
         } else echo json_encode(['status' => 'error', 'message' => $conn->error]);
     }
 }
+
+// ==============================================
+// AKSI OPERASIONAL ISP (STATUS, AUDIT, IMPORT, BACKUP, TELEGRAM)
+// ==============================================
+elseif ($action == 'set_status') {
+    $data = json_decode(file_get_contents('php://input'), true);
+    $id = isset($data['id']) ? (int)$data['id'] : 0;
+    $st = isset($data['status']) ? $data['status'] : '';
+    if (!in_array($st, ['Aktif', 'Isolir', 'Cabut'], true)) {
+        echo json_encode(['status' => 'error', 'message' => 'Status tidak valid.']); exit;
+    }
+    $row = $conn->query("SELECT id, client, id_pppoe FROM pelanggan WHERE id=$id");
+    if (!$row || $row->num_rows === 0) { echo json_encode(['status' => 'error', 'message' => 'Pelanggan tidak ditemukan.']); exit; }
+    $r = $row->fetch_assoc();
+
+    $stmt = $conn->prepare("UPDATE pelanggan SET status=? WHERE id=?");
+    if ($stmt) {
+        $stmt->bind_param('si', $st, $id);
+        if (!$stmt->execute()) { echo json_encode(['status' => 'error', 'message' => $conn->error]); exit; }
+        $stmt->close();
+    }
+
+    // Upaya sinkron MikroTik: disable/enable secret PPPoE (teraplikasi bila koneksi tersedia)
+    $mkNote = '';
+    $uname = trim((string)($r['id_pppoe'] ?? ''));
+    if ($uname !== '-' && $uname !== '') {
+        $ba = strpos($uname, '@');
+        if ($ba !== false) $uname = substr($uname, 0, $ba);
+        $mkConf = [];
+        $res = $conn->query("SELECT setting_key, setting_value FROM settings WHERE setting_key LIKE 'mikrotik_%'");
+        if ($res) while($m = $res->fetch_assoc()) { $mkConf[$m['setting_key']] = $m['setting_value']; }
+        $mkConf = decryptConf($mkConf, ['mikrotik_pass']);
+        $mk_ip = $mkConf['mikrotik_ip'] ?? '';
+        if ($mk_ip !== '') {
+            require_once 'routeros_api.class.php';
+            $mk_port = !empty($mkConf['mikrotik_port']) ? (int)$mkConf['mikrotik_port'] : 8728;
+            $mk_user = $mkConf['mikrotik_user'] ?? '';
+            $mk_pass = $mkConf['mikrotik_pass'] ?? '';
+            $API = new RouterosAPI();
+            $API->ssl = (!empty($mkConf['mikrotik_ssl']) && ($mkConf['mikrotik_ssl'] === '1' || $mkConf['mikrotik_ssl'] === 'true'));
+            if ($API->connect($mk_ip, $mk_user, $mk_pass, $mk_port)) {
+                if ($st === 'Isolir') {
+                    $API->write('/ppp/secret/disable', false);
+                    $API->write('=numbers=' . $uname);
+                } elseif ($st === 'Cabut') {
+                    // Cabut: hapus secret bila ada
+                    $API->write('/ppp/secret/remove', false);
+                    $API->write('=numbers=' . $uname);
+                } else {
+                    $API->write('/ppp/secret/enable', false);
+                    $API->write('=numbers=' . $uname);
+                }
+                $API->read();
+                $API->disconnect();
+                $mkNote = ' MikroTik: OK';
+            } else {
+                $mkNote = ' MikroTik: tidak terjangkau (status tetap diupdate lokal).';
+            }
+        }
+    }
+
+    addAudit($conn, 'SET_STATUS', $r['client'] . ' -> ' . $st, $id);
+    sendTelegram($conn, "📝 Status pelanggan diubah: " . $r['client'] . "\nStatus: " . $st . "\nOleh: " . ($_SESSION['username'] ?? '?'));
+    echo json_encode(['status' => 'success', 'message' => "Status pelanggan diubah menjadi $st." . $mkNote]);
+    exit;
+}
+
+elseif ($action == 'get_audit') {
+    $limit = min(500, max(10, (int)($_GET['limit'] ?? 200)));
+    $res = $conn->query("SELECT id, username, action, detail, customer_id, ip, waktu FROM audit_log ORDER BY id DESC LIMIT $limit");
+    $rows = [];
+    if ($res) while($row = $res->fetch_assoc()) { $rows[] = $row; }
+    echo json_encode(['status' => 'success', 'data' => $rows]);
+    exit;
+}
+
+elseif ($action == 'clear_audit') {
+    $conn->query("DELETE FROM audit_log");
+    addAudit($conn, 'BERSIHKAN_LOG', 'Audit log dibersihkan');
+    echo json_encode(['status' => 'success']);
+    exit;
+}
+
+elseif ($action == 'get_history') {
+    $cid = (int)($_GET['id'] ?? 0);
+    $res = $conn->query("SELECT id, username, action, detail, waktu FROM audit_log WHERE customer_id=$cid ORDER BY id DESC LIMIT 50");
+    $rows = [];
+    if ($res) while($row = $res->fetch_assoc()) { $rows[] = $row; }
+    echo json_encode(['status' => 'success', 'data' => $rows]);
+    exit;
+}
+
+elseif ($action == 'update_telegram') {
+    $data = json_decode(file_get_contents('php://input'), true);
+    foreach (['telegram_bot_token', 'telegram_chat_id'] as $k) {
+        $v = $conn->real_escape_string($data[$k] ?? '');
+        $conn->query("INSERT INTO settings (setting_key, setting_value) VALUES ('$k', '$v') ON DUPLICATE KEY UPDATE setting_value='$v'");
+    }
+    addAudit($conn, 'UBAH_SETTING', 'Konfigurasi Telegram diperbarui');
+    echo json_encode(['status' => 'success']);
+    exit;
+}
+
+elseif ($action == 'import_customers') {
+    $data = json_decode(file_get_contents('php://input'), true);
+    $rows = isset($data['rows']) ? $data['rows'] : [];
+    if (!is_array($rows) || count($rows) === 0) { echo json_encode(['status' => 'error', 'message' => 'Tidak ada data untuk diimpor.']); exit; }
+    if (count($rows) > 2000) { echo json_encode(['status' => 'error', 'message' => 'Maksimal 2000 baris per import.']); exit; }
+    $sukses = 0; $gagal = 0; $errors = [];
+    foreach ($rows as $item) {
+        if (!is_array($item)) { $gagal++; continue; }
+        $norm = normalizeCustomer($item, $err);
+        if (!$norm) { $gagal++; if (count($errors) < 10) $errors[] = $err; continue; }
+        $cek = $conn->prepare("SELECT id FROM pelanggan WHERE id_pppoe=? LIMIT 1");
+        $dup = false;
+        if ($cek) {
+            $cek->bind_param('s', $norm['id_pppoe']); $cek->execute();
+            $dup = ($cek->get_result()->num_rows > 0); $cek->close();
+        }
+        if ($dup) { $gagal++; continue; }
+        $stmt = $conn->prepare("INSERT INTO pelanggan (client, paket, sn, id_pppoe, port, status) VALUES (?, ?, ?, ?, ?, ?)");
+        if ($stmt) {
+            $stmt->bind_param('sissss', $norm['client'], $norm['paket'], $norm['sn'], $norm['id_pppoe'], $norm['port'], $norm['status']);
+            if ($stmt->execute()) { $sukses++; addAudit($conn, 'IMPORT_PELANGGAN', $norm['client'] . ' | ' . $norm['id_pppoe'], $stmt->insert_id); }
+            else $gagal++;
+            $stmt->close();
+        } else $gagal++;
+    }
+    addAudit($conn, 'IMPORT_CSV', "Import: $sukses sukses, $gagal gagal");
+    echo json_encode(['status' => 'success', 'sukses' => $sukses, 'gagal' => $gagal, 'errors' => $errors]);
+    exit;
+}
+
+elseif ($action == 'backup_db') {
+    addAudit($conn, 'BACKUP_DB', 'Backup database diunduh');
+    $tables = [];
+    $tr = $conn->query("SHOW TABLES");
+    if ($tr) while($row = $tr->fetch_array()) { $tables[] = $row[0]; }
+    $out = "-- Supernova DB Backup --\n-- Tanggal: " . date('Y-m-d H:i:s') . "\nSET FOREIGN_KEY_CHECKS=0;\n";
+    foreach ($tables as $tbl) {
+        $out .= "\nDROP TABLE IF EXISTS `$tbl`;\n";
+        $ct = $conn->query("SHOW CREATE TABLE `$tbl`");
+        if (!$ct) continue;
+        $row = $ct->fetch_row();
+        $out .= $row[1] . ";\n";
+        $dt = $conn->query("SELECT * FROM `$tbl`");
+        if (!$dt) continue;
+        while ($d = $dt->fetch_assoc()) {
+            $cols = array_map(function($c){ return "`$c`"; }, array_keys($d));
+            $vals = array_map(function($v) use ($conn){ return "'" . $conn->real_escape_string((string)$v) . "'"; }, array_values($d));
+            $out .= "INSERT INTO `$tbl` (" . implode(',', $cols) . ") VALUES (" . implode(',', $vals) . ");\n";
+        }
+    }
+    $out .= "SET FOREIGN_KEY_CHECKS=1;\n";
+    header('Content-Type: application/sql');
+    header('Content-Disposition: attachment; filename="supernova_backup_' . date('Ymd_His') . '.sql"');
+    echo $out;
+    exit;
+}
+
 // ==============================================
 // ROUTING API MIKROTIK PPPOE SECRET
 // ==============================================
@@ -558,6 +812,7 @@ elseif ($action == 'mikrotik_get_profiles') {
     $conf = [];
     $res = $conn->query("SELECT setting_key, setting_value FROM settings WHERE setting_key LIKE 'mikrotik_%'");
     while($r = $res->fetch_assoc()) { $conf[$r['setting_key']] = $r['setting_value']; }
+    $conf = decryptConf($conf, ['mikrotik_pass']);
     
     $m_ip   = $conf['mikrotik_ip'] ?? '192.168.88.1';
     $m_port = (!empty($conf['mikrotik_port'])) ? (int)$conf['mikrotik_port'] : 8728; // <-- Membaca port custom MikroTik dari database
@@ -593,6 +848,7 @@ elseif ($action == 'mikrotik_monitor') {
     $conf = [];
     $res = $conn->query("SELECT setting_key, setting_value FROM settings WHERE setting_key LIKE 'mikrotik_%'");
     while($r = $res->fetch_assoc()) { $conf[$r['setting_key']] = $r['setting_value']; }
+    $conf = decryptConf($conf, ['mikrotik_pass']);
 
     $m_ip   = $conf['mikrotik_ip'] ?? '192.168.88.1';
 $m_port = (!empty($conf['mikrotik_port'])) ? (int)$conf['mikrotik_port'] : 8728;
@@ -657,6 +913,7 @@ elseif ($action == 'mikrotik_add_secret') {
     $conf = [];
     $res = $conn->query("SELECT setting_key, setting_value FROM settings WHERE setting_key LIKE 'mikrotik_%'");
     while($r = $res->fetch_assoc()) { $conf[$r['setting_key']] = $r['setting_value']; }
+    $conf = decryptConf($conf, ['mikrotik_pass']);
     
     $m_ip   = $conf['mikrotik_ip'] ?? '192.168.88.1';
     $m_port = (!empty($conf['mikrotik_port'])) ? (int)$conf['mikrotik_port'] : 8728; // <-- Membaca port custom MikroTik dari database

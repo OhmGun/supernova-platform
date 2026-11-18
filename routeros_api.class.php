@@ -51,9 +51,9 @@ class RouterosAPI {
                     }
                 } else {
                     // RouterOS lama / tanpa challenge
-                    $this->connected = empty($resp['trap']);
+                    $this->connected = empty($resp['trap']) && !empty($resp['__done']);
                     if (!$this->connected) {
-                        $this->lastError = 'Login API ditolak (cek kredensial / perizinan API).';
+                        $this->lastError = 'Login API ditolak (cek kredensial / perizinan API atau respons timeout).';
                     }
                 }
 
@@ -85,6 +85,7 @@ class RouterosAPI {
                 $val = ($eq === false) ? '' : substr($word, $eq + 1);
                 $attrs[$key] = $val;
             } elseif ($word === '!done') {
+                $attrs['__done'] = true;
                 break;
             } elseif ($word === '!trap' || $word === '!fatal') {
                 $attrs['trap'] = true;
@@ -161,11 +162,15 @@ class RouterosAPI {
     private function readWord() {
         if (!$this->socket) return false;
         $length = $this->decodeLength();
+        if ($length === -1) return false;
         if ($length > 0) {
             $data = '';
             $bytes = 0;
             while ($bytes < $length) {
-                $buffer = fread($this->socket, $length - $bytes);
+                $buffer = @fread($this->socket, $length - $bytes);
+                if ($buffer === '' || $buffer === false) {
+                    return false;   // koneksi putus / timeout saat badan word
+                }
                 $bytes += strlen($buffer);
                 $data .= $buffer;
             }
@@ -196,7 +201,9 @@ class RouterosAPI {
     }
 
     private function decodeLength() {
-        $byte = ord(fread($this->socket, 1));
+        $b = @fread($this->socket, 1);
+        if ($b === '' || $b === false) return -1; // waktu habis / koneksi mati
+        $byte = ord($b);
         if ($byte & 128) {
             if (($byte & 192) == 128) {
                 $byte &= ~192;
