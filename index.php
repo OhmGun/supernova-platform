@@ -217,14 +217,14 @@ $default_tab = 'dashboard';
 
     <div style="display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin-bottom:12px; font-size:12px; color:var(--muted);">
       <span><i class="fa-solid fa-rotate" style="margin-right:4px;"></i> <span id="dash-mon-ts">...</span></span>
-      <button class="btn btn-sm btn-amber" onclick="loadDashboardRealtime()"><i class="fa-solid fa-rotate"></i> Segarkan Real-time</button>
+      <button class="btn btn-sm btn-amber" id="dash-refresh-btn" onclick="loadDashboardRealtime()"><i class="fa-solid fa-rotate"></i> Segarkan Real-time</button>
       <span id="dash-mon-err" class="hidden" style="color:#fda4af;"></span>
     </div>
 
     <div class="card" style="margin-bottom:12px; border-color: rgba(14,165,233,.4);">
       <div class="card-header">
         <span class="card-title" style="color:#38bdf8;"><i class="fa-solid fa-chart-line"></i> Traffic <span id="dash-traffic-iface">ether4</span> → Pelanggan</span>
-        <button class="btn btn-sm btn-outline-primary" onclick="loadDashboardTraffic()" title="Segarkan traffic"><i class="fa-solid fa-rotate"></i></button>
+        <button class="btn btn-sm btn-outline-primary" id="dash-traffic-btn" onclick="loadDashboardTraffic()" title="Segarkan traffic"><i class="fa-solid fa-rotate"></i></button>
       </div>
       <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap:16px;">
         <div>
@@ -1642,18 +1642,22 @@ function fmtBps(bps) {
 async function loadDashboardTraffic() {
   const rx = document.getElementById('dash-traffic-rx');
   const tx = document.getElementById('dash-traffic-tx');
-  if (rx) rx.innerHTML = '<div class="skel" style="width:50%"></div>';
-  if (tx) tx.innerHTML = '<div class="skel" style="width:50%"></div>';
+  const btn = document.getElementById('dash-traffic-btn');
+  if (btn) { btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>'; btn.disabled = true; }
+  if (!window.trafficLoaded) {
+    if (rx) rx.innerHTML = '<div class="skel" style="width:50%"></div>';
+    if (tx) tx.innerHTML = '<div class="skel" style="width:50%"></div>';
+  }
   try {
     const res = await fetch('api.php?action=mikrotik_traffic&interface=ether4');
     const j = await res.json();
     if (j.status !== 'success') {
-      if (rx) rx.textContent = '—';
-      if (tx) tx.textContent = '—';
+      if (!window.trafficLoaded) { if (rx) rx.textContent = '—'; if (tx) tx.textContent = '—'; }
       const er = document.getElementById('dash-mon-err');
       if (er && j.message) { er.textContent = '⚠ ' + j.message; er.classList.remove('hidden'); }
       return;
     }
+    window.trafficLoaded = true;
     const nameEl = document.getElementById('dash-traffic-iface');
     if (nameEl) nameEl.textContent = j.interface;
     const rxV = j.rx || 0, txV = j.tx || 0;
@@ -1665,8 +1669,9 @@ async function loadDashboardTraffic() {
     if (br) br.style.width = Math.max(3, Math.round(rxV / max * 100)) + '%';
     if (bt) bt.style.width = Math.max(3, Math.round(txV / max * 100)) + '%';
   } catch(e) {
-    if (rx) rx.textContent = '—';
-    if (tx) tx.textContent = '—';
+    if (!window.trafficLoaded) { if (rx) rx.textContent = '—'; if (tx) tx.textContent = '—'; }
+  } finally {
+    if (btn) { btn.innerHTML = '<i class="fa-solid fa-rotate"></i>'; btn.disabled = false; }
   }
 }
 
@@ -1675,27 +1680,35 @@ async function loadDashboardRealtime() {
   const off = document.getElementById('dash-mon-offline');
   const ts = document.getElementById('dash-mon-ts');
   const er = document.getElementById('dash-mon-err');
-  if (on) on.innerHTML = '<div class="skel" style="width:45%"></div>';
-  if (off) off.innerHTML = '<div class="skel" style="width:45%"></div>';
-  renderDashLists(true);
+  const btn = document.getElementById('dash-refresh-btn');
+  if (btn) { btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Memuat...'; btn.disabled = true; }
   if (er) er.classList.add('hidden');
+  // Skeleton hanya pada pemuatan pertama; saat refresh angka lama tetap tampil
+  if (!window.dashLoaded) {
+    if (on) on.innerHTML = '<div class="skel" style="width:45%"></div>';
+    if (off) off.innerHTML = '<div class="skel" style="width:45%"></div>';
+    renderDashLists(true);
+  }
   try {
     const res = await fetch('api.php?action=mikrotik_monitor');
     const j = await res.json();
     const list = j.online || [];
     window.dashMon = list;
+    window.dashLoaded = true;
     const online = list.filter(x => x.online).length;
     if (on) on.textContent = online;
     if (off) off.textContent = list.length - online;
     if (ts) ts.textContent = 'Diperbarui ' + new Date().toLocaleTimeString('id-ID');
     if (er && j.error) { er.textContent = '⚠ ' + j.error; er.classList.remove('hidden'); }
     if (er && j.status !== 'success') { er.textContent = '⚠ ' + (j.message || 'Gagal'); er.classList.remove('hidden'); }
+    else if (er) er.classList.add('hidden');
     renderDashLists(false);
   } catch(e) {
-    if (on) on.textContent = '?';
-    if (off) off.textContent = '?';
-    if (ts) ts.textContent = 'Gagal ambil data';
-    renderDashLists(false);
+    if (on && !window.dashLoaded) on.textContent = '?';
+    if (off && !window.dashLoaded) off.textContent = '?';
+    if (ts && !window.dashLoaded) ts.textContent = 'Gagal ambil data';
+  } finally {
+    if (btn) { btn.innerHTML = '<i class="fa-solid fa-rotate"></i> Segarkan Real-time'; btn.disabled = false; }
   }
 }
 
@@ -1703,11 +1716,12 @@ function renderDashLists(loading) {
   const onlineBox = document.getElementById('dash-online-list');
   const offlineBox = document.getElementById('dash-offline-list');
   if (!onlineBox || !offlineBox) return;
-  if (loading) {
+  if (loading && !window.dashLoaded) {
     onlineBox.innerHTML = '<div class="skel" style="margin:8px 10px;"></div>'.repeat(4);
     offlineBox.innerHTML = '<div class="skel" style="margin:8px 10px;"></div>'.repeat(4);
     return;
   }
+  if (loading) return; // sedang refresh: biarkan daftar lama tampil
   const mk = (x) => `<div class="mon-item"><span style="font-weight:600;">${esc(x.client)}</span><span>${esc(String(x.id_pppoe || '').split('@')[0] || '-')}</span></div>`;
   const list = window.dashMon || [];
   const online = list.filter(x => x.online).sort((a, b) => (a.client || '').localeCompare(b.client || ''));
