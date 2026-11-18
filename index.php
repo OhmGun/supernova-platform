@@ -26,7 +26,7 @@ $default_tab = 'dashboard';
   header { background: var(--card); border-bottom: 1px solid var(--border); padding: 12px 20px; position: sticky; top: 0; z-index: 20; }
   .header-inner { max-width: 1240px; margin: 0 auto; display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 12px; }
   .brand { display: flex; align-items: center; gap: 12px; }
-  .logo { width: 38px; height: 38px; background: var(--primary); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-weight: 800; font-family: monospace; font-size: 13px; }
+  .logo { width: 38px; height: 38px; background: rgba(15,23,42,.85); border: 1px solid rgba(139,92,246,.4); border-radius: 10px; display: flex; align-items: center; justify-content: center; box-shadow: 0 6px 18px rgba(79,70,229,.25); }
   .badge { font-size: 11px; background: rgba(79, 70, 229, 0.2); color: #a5b4fc; border: 1px solid rgba(79, 70, 229, 0.4); padding: 2px 8px; border-radius: 99px; font-family: monospace; text-transform:uppercase; }
   .tabs { display: flex; gap: 4px; background: var(--input); padding: 4px; border-radius: 8px; border: 1px solid #334155; }
   .tab-btn { background: transparent; color: var(--muted); border: none; padding: 7px 14px; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; transition: 0.2s; }
@@ -82,6 +82,12 @@ $default_tab = 'dashboard';
   .quick-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
   .bar-track { background: #1e293b; height: 10px; border-radius: 6px; overflow: hidden; }
   .bar-fill { height: 100%; border-radius: 6px; transition: width .4s ease; }
+  .mon-head { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .8px; padding: 8px 0; border-bottom: 1px solid var(--border); }
+  .mon-item { display: flex; justify-content: space-between; gap: 8px; padding: 7px 10px; font-size: 12px; border-radius: 6px; border-bottom: 1px solid rgba(148,163,184,.08); }
+  .mon-item span { color: var(--muted); font-family: monospace; }
+  .mon-item:hover { background: rgba(148,163,184,.08); }
+  .mon-empty { color: var(--muted); font-size: 12px; padding: 16px 10px; text-align: center; }
+  .mon-list-box { max-height: 360px; overflow: auto; margin-top: 4px; }
   @media (max-width: 640px) {
     .tabs { overflow-x: auto; flex-wrap: nowrap; -webkit-overflow-scrolling: touch; }
     .tab-btn { white-space: nowrap; }
@@ -119,6 +125,43 @@ $default_tab = 'dashboard';
   <?php if (isset($_SESSION['role']) && $_SESSION['role'] === 'readonly'): ?>
   <?php if (!$is_admin): ?>  .admin-only { display: none !important; }<?php endif; ?>
   <?php endif; ?>
+
+  /* ===== POLISH: depth, gradient & glass (bukan flat) ===== */
+  body { background:
+    radial-gradient(1100px 560px at 88% -8%, rgba(99,102,241,.16), transparent 60%),
+    radial-gradient(900px 480px at -8% 110%, rgba(6,182,212,.12), transparent 60%),
+    radial-gradient(700px 380px at 55% 120%, rgba(16,185,129,.08), transparent 60%),
+    #020617;
+  }
+  header { background: linear-gradient(180deg, rgba(17,24,39,.94), rgba(10,14,26,.88)); border-bottom: 1px solid rgba(99,102,241,.4); box-shadow: 0 8px 24px rgba(0,0,0,.45); backdrop-filter: blur(10px); }
+  .card { background: linear-gradient(180deg, rgba(34,45,66,.55), rgba(15,23,42,.78)); box-shadow: 0 10px 26px rgba(0,0,0,.32), inset 0 1px 0 rgba(255,255,255,.04); border: 1px solid rgba(148,163,184,.16); }
+  .stats-grid .card, .quick-grid .btn { background: linear-gradient(180deg, rgba(34,45,66,.72), rgba(15,23,42,.86)); }
+  .card-header { border-bottom: 1px solid rgba(148,163,184,.12); }
+  .tabs { background: rgba(15,23,42,.55); box-shadow: inset 0 1px 0 rgba(255,255,255,.04); }
+  .tab-btn { border: 1px solid transparent; transition: .15s; }
+  .tab-btn:hover { background: rgba(99,102,241,.16); }
+  .tab-btn.active { background: linear-gradient(180deg, #6366f1, #4338ca); border-color: rgba(129,140,248,.65); box-shadow: 0 4px 14px rgba(79,70,229,.45), inset 0 1px 0 rgba(255,255,255,.15); }
+  .btn { border: 1px solid rgba(255,255,255,.07); box-shadow: 0 4px 12px rgba(0,0,0,.25), inset 0 1px 0 rgba(255,255,255,.08); transition: transform .12s, filter .15s, box-shadow .15s; }
+  .btn:hover { transform: translateY(-1px); box-shadow: 0 8px 18px rgba(0,0,0,.38); }
+  .btn:active { transform: translateY(0); }
+  .btn-emerald { background: linear-gradient(180deg, #10b981, #059669); }
+  .btn-amber { background: linear-gradient(180deg, #f59e0b, #d97706); }
+  .btn-rose { background: linear-gradient(180deg, #fb7185, #e11d48); color: #fff; }
+  .btn-muted { background: linear-gradient(180deg, #1e293b, #0f172a); }
+  .btn-outline-primary { background: rgba(79,70,229,.14); }
+  input, select, textarea { background: rgba(30,41,59,.8); box-shadow: inset 0 1px 3px rgba(0,0,0,.35); }
+  input:focus, select:focus, textarea:focus { border-color: #6366f1; box-shadow: 0 0 0 3px rgba(99,102,241,.28), inset 0 1px 3px rgba(0,0,0,.35); }
+  th { background: linear-gradient(180deg, #1e293b, #172235); border-bottom: 1px solid rgba(99,102,241,.28); }
+  .stat-val { text-shadow: 0 2px 18px rgba(99,102,241,.45); }
+  .badge { box-shadow: inset 0 -2px 6px rgba(0,0,0,.18); }
+  .modal-card { background: linear-gradient(180deg, #17203a, #0d1428); border: 1px solid rgba(99,102,241,.4); box-shadow: 0 30px 70px rgba(0,0,0,.6); }
+  .quick-grid .btn { border-radius: 12px; }
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-track { background: #0b1120; }
+  ::-webkit-scrollbar-thumb { background: #2b3a52; border-radius: 6px; border: 2px solid #0b1120; }
+  ::-webkit-scrollbar-thumb:hover { background: #3b4d6b; }
+  .alert-ok { border-left: 4px solid #10b981; }
+  .alert-warn { border-left: 4px solid #f59e0b; }
 </style>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
@@ -127,7 +170,7 @@ $default_tab = 'dashboard';
 <header>
   <div class="header-inner">
     <div class="brand">
-      <div class="logo">OLT</div>
+      <div class="logo"><svg viewBox="0 0 64 64" width="26" height="26" aria-hidden="true"><defs><linearGradient id="snLogo" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#8b5cf6"/><stop offset=".55" stop-color="#6366f1"/><stop offset="1" stop-color="#06b6d4"/></linearGradient></defs><circle cx="32" cy="32" r="24" fill="none" stroke="url(#snLogo)" stroke-width="1.6" opacity=".55"/><g stroke="url(#snLogo)" stroke-width="2.4" stroke-linecap="round"><line x1="32" y1="8" x2="32" y2="20"/><line x1="32" y1="44" x2="32" y2="56"/><line x1="8" y1="32" x2="20" y2="32"/><line x1="44" y1="32" x2="56" y2="32"/></g><g fill="#22d3ee"><circle cx="56" cy="32" r="3.2"/><circle cx="32" cy="8" r="3.2"/><circle cx="8" cy="32" r="3.2"/><circle cx="32" cy="56" r="3.2"/></g><g fill="#a5b4fc"><circle cx="46" cy="18" r="2.6"/><circle cx="18" cy="18" r="2.6"/><circle cx="18" cy="46" r="2.6"/><circle cx="46" cy="46" r="2.6"/></g><circle cx="32" cy="32" r="11" fill="url(#snLogo)"/><circle cx="28.5" cy="28.5" r="4" fill="#fff" opacity=".92"/></svg></div>
       <div>
         <div style="font-weight:700; font-size:16px;">
           SUPERNOVA <span class="badge">ZTE C320</span>
@@ -168,6 +211,33 @@ $default_tab = 'dashboard';
       <div class="card" style="margin:0"><div style="font-size:11px; color:var(--muted)">Aktif</div><div id="dash-aktif" class="stat-val" style="color:#34d399"><div class="skel" style="width:45%"></div></div></div>
       <div class="card" style="margin:0"><div style="font-size:11px; color:var(--muted)">Isolir</div><div id="dash-isolir" class="stat-val" style="color:#fbbf24"><div class="skel" style="width:45%"></div></div></div>
       <div class="card" style="margin:0"><div style="font-size:11px; color:var(--muted)">Cabut / Nonaktif</div><div id="dash-cabut" class="stat-val" style="color:#fda4af"><div class="skel" style="width:45%"></div></div></div>
+      <div class="card" style="margin:0; border-color:#0d9488;"><div style="font-size:11px; color:var(--muted)"><i class="fa-solid fa-wifi"></i> Online (MikroTik)</div><div id="dash-mon-online" class="stat-val" style="color:#34d399"><div class="skel" style="width:45%"></div></div></div>
+      <div class="card" style="margin:0;"><div style="font-size:11px; color:var(--muted)"><i class="fa-solid fa-wifi-slash"></i> Offline (MikroTik)</div><div id="dash-mon-offline" class="stat-val" style="color:#fbbf24"><div class="skel" style="width:45%"></div></div></div>
+    </div>
+
+    <div style="display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin-bottom:12px; font-size:12px; color:var(--muted);">
+      <span><i class="fa-solid fa-rotate" style="margin-right:4px;"></i> <span id="dash-mon-ts">...</span></span>
+      <button class="btn btn-sm btn-amber" onclick="loadDashboardRealtime()"><i class="fa-solid fa-rotate"></i> Segarkan Real-time</button>
+      <span id="dash-mon-err" class="hidden" style="color:#fda4af;"></span>
+    </div>
+
+    <div class="card" style="margin-bottom:12px; border-color: rgba(14,165,233,.4);">
+      <div class="card-header">
+        <span class="card-title" style="color:#38bdf8;"><i class="fa-solid fa-chart-line"></i> Traffic <span id="dash-traffic-iface">ether4</span> → Pelanggan</span>
+        <button class="btn btn-sm btn-outline-primary" onclick="loadDashboardTraffic()" title="Segarkan traffic"><i class="fa-solid fa-rotate"></i></button>
+      </div>
+      <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap:16px;">
+        <div>
+          <div style="font-size:11px; color:var(--muted);"><i class="fa-solid fa-arrow-down" style="color:#34d399;"></i> Unduh (RX)</div>
+          <div id="dash-traffic-rx" class="stat-val" style="color:#34d399;">—</div>
+          <div class="bar-track" style="margin-top:8px;"><div id="bar-traffic-rx" class="bar-fill" style="width:0; background:#10b981;"></div></div>
+        </div>
+        <div>
+          <div style="font-size:11px; color:var(--muted);"><i class="fa-solid fa-arrow-up" style="color:#38bdf8;"></i> Unggah (TX)</div>
+          <div id="dash-traffic-tx" class="stat-val" style="color:#38bdf8;">—</div>
+          <div class="bar-track" style="margin-top:8px;"><div id="bar-traffic-tx" class="bar-fill" style="width:0; background:#0ea5e9;"></div></div>
+        </div>
+      </div>
     </div>
 
     <div class="card" style="margin-bottom:16px;">
@@ -197,10 +267,23 @@ $default_tab = 'dashboard';
         <?php endif; ?>
       </div>
     </div>
+
+    <div class="card" style="margin-top:16px;">
+      <div class="card-header"><span class="card-title"><i class="fa-solid fa-signal"></i> Status Real-time per Pelanggan</span></div>
+      <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(280px, 1fr)); gap:16px;">
+        <div>
+          <div class="mon-head" style="color:#34d399;"><i class="fa-solid fa-wifi"></i> Online</div>
+          <div class="mon-list-box" id="dash-online-list"></div>
+        </div>
+        <div>
+          <div class="mon-head" style="color:#fbbf24;"><i class="fa-solid fa-wifi-slash"></i> Offline</div>
+          <div class="mon-list-box" id="dash-offline-list"></div>
+        </div>
+      </div>
+    </div>
   </div>
 
-  <!-- TAB 1: BROADBAND -->
-  <div id="view-broadband" class="grid-main<?php echo $default_tab === 'broadband' ? '' : ' hidden'; ?>">
+  <!-- TAB 1: BROADBAND -->  <div id="view-broadband" class="grid-main<?php echo $default_tab === 'broadband' ? '' : ' hidden'; ?>">
     <div>
       <div class="card">
         <div class="card-header">
@@ -1544,6 +1627,93 @@ async function loadDashboard() {
     document.getElementById('bar-isolir').style.width = Math.round(isolir / base * 100) + '%';
     document.getElementById('bar-cabut').style.width = Math.round(cabut / base * 100) + '%';
   } catch(e) {}
+  loadDashboardRealtime();
+  loadDashboardTraffic();
+}
+
+function fmtBps(bps) {
+  bps = Number(bps) || 0;
+  if (bps >= 1e9) return (bps / 1e9).toFixed(2) + ' Gbps';
+  if (bps >= 1e6) return (bps / 1e6).toFixed(2) + ' Mbps';
+  if (bps >= 1e3) return (bps / 1e3).toFixed(1) + ' Kbps';
+  return '0 bps';
+}
+
+async function loadDashboardTraffic() {
+  const rx = document.getElementById('dash-traffic-rx');
+  const tx = document.getElementById('dash-traffic-tx');
+  if (rx) rx.innerHTML = '<div class="skel" style="width:50%"></div>';
+  if (tx) tx.innerHTML = '<div class="skel" style="width:50%"></div>';
+  try {
+    const res = await fetch('api.php?action=mikrotik_traffic&interface=ether4');
+    const j = await res.json();
+    if (j.status !== 'success') {
+      if (rx) rx.textContent = '—';
+      if (tx) tx.textContent = '—';
+      const er = document.getElementById('dash-mon-err');
+      if (er && j.message) { er.textContent = '⚠ ' + j.message; er.classList.remove('hidden'); }
+      return;
+    }
+    const nameEl = document.getElementById('dash-traffic-iface');
+    if (nameEl) nameEl.textContent = j.interface;
+    const rxV = j.rx || 0, txV = j.tx || 0;
+    if (rx) rx.textContent = fmtBps(rxV);
+    if (tx) tx.textContent = fmtBps(txV);
+    const max = Math.max(rxV, txV, 1);
+    const br = document.getElementById('bar-traffic-rx');
+    const bt = document.getElementById('bar-traffic-tx');
+    if (br) br.style.width = Math.max(3, Math.round(rxV / max * 100)) + '%';
+    if (bt) bt.style.width = Math.max(3, Math.round(txV / max * 100)) + '%';
+  } catch(e) {
+    if (rx) rx.textContent = '—';
+    if (tx) tx.textContent = '—';
+  }
+}
+
+async function loadDashboardRealtime() {
+  const on = document.getElementById('dash-mon-online');
+  const off = document.getElementById('dash-mon-offline');
+  const ts = document.getElementById('dash-mon-ts');
+  const er = document.getElementById('dash-mon-err');
+  if (on) on.innerHTML = '<div class="skel" style="width:45%"></div>';
+  if (off) off.innerHTML = '<div class="skel" style="width:45%"></div>';
+  renderDashLists(true);
+  if (er) er.classList.add('hidden');
+  try {
+    const res = await fetch('api.php?action=mikrotik_monitor');
+    const j = await res.json();
+    const list = j.online || [];
+    window.dashMon = list;
+    const online = list.filter(x => x.online).length;
+    if (on) on.textContent = online;
+    if (off) off.textContent = list.length - online;
+    if (ts) ts.textContent = 'Diperbarui ' + new Date().toLocaleTimeString('id-ID');
+    if (er && j.error) { er.textContent = '⚠ ' + j.error; er.classList.remove('hidden'); }
+    if (er && j.status !== 'success') { er.textContent = '⚠ ' + (j.message || 'Gagal'); er.classList.remove('hidden'); }
+    renderDashLists(false);
+  } catch(e) {
+    if (on) on.textContent = '?';
+    if (off) off.textContent = '?';
+    if (ts) ts.textContent = 'Gagal ambil data';
+    renderDashLists(false);
+  }
+}
+
+function renderDashLists(loading) {
+  const onlineBox = document.getElementById('dash-online-list');
+  const offlineBox = document.getElementById('dash-offline-list');
+  if (!onlineBox || !offlineBox) return;
+  if (loading) {
+    onlineBox.innerHTML = '<div class="skel" style="margin:8px 10px;"></div>'.repeat(4);
+    offlineBox.innerHTML = '<div class="skel" style="margin:8px 10px;"></div>'.repeat(4);
+    return;
+  }
+  const mk = (x) => `<div class="mon-item"><span style="font-weight:600;">${esc(x.client)}</span><span>${esc(String(x.id_pppoe || '').split('@')[0] || '-')}</span></div>`;
+  const list = window.dashMon || [];
+  const online = list.filter(x => x.online).sort((a, b) => (a.client || '').localeCompare(b.client || ''));
+  const offline = list.filter(x => !x.online).sort((a, b) => (a.client || '').localeCompare(b.client || ''));
+  onlineBox.innerHTML = online.length ? online.map(mk).join('') : '<div class="mon-empty">Tidak ada yang online</div>';
+  offlineBox.innerHTML = offline.length ? offline.map(mk).join('') : '<div class="mon-empty">Tidak ada yang offline</div>';
 }
 
 // ================= MONITORING ONLINE/OFFLINE (MIKROTIK) =================
@@ -1663,8 +1833,11 @@ function exportMonitoringCSV() {
 }
 
 setInterval(() => {
-  const v = document.getElementById('view-monitoring');
-  if (v && !v.classList.contains('hidden')) loadMonitoring();
+  const mv = document.getElementById('view-monitoring');
+  if (mv && !mv.classList.contains('hidden')) loadMonitoring();
+
+  const dv = document.getElementById('view-dashboard');
+  if (dv && !dv.classList.contains('hidden')) { loadDashboardRealtime(); loadDashboardTraffic(); }
 }, 30000);
 </script>
 </body>

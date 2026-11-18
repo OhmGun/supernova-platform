@@ -723,6 +723,72 @@ elseif ($action == 'get_stats') {
     exit;
 }
 
+elseif ($action == 'mikrotik_traffic') {
+    require_once 'routeros_api.class.php';
+
+    $iface = isset($_GET['interface']) && $_GET['interface'] !== '' ? preg_replace('/[^A-Za-z0-9_\.\/\-]/', '', $_GET['interface']) : 'ether4';
+
+    $conf = [];
+    $res = $conn->query("SELECT setting_key, setting_value FROM settings WHERE setting_key LIKE 'mikrotik_%'");
+    if ($res) while($row = $res->fetch_assoc()) { $conf[$row['setting_key']] = $row['setting_value']; }
+    $d = app_decrypt($conf['mikrotik_pass'] ?? '');
+    if ($d !== null) $conf['mikrotik_pass'] = $d;
+
+    $API = new RouterosAPI();
+    $API->ssl = (!empty($conf['mikrotik_ssl']) && ($conf['mikrotik_ssl'] === '1' || $conf['mikrotik_ssl'] === 'true'));
+    $mk_ip = $conf['mikrotik_ip'] ?? '';
+    $mk_port = !empty($conf['mikrotik_port']) ? (int)$conf['mikrotik_port'] : 8728;
+
+    if ($mk_ip === '' || !$API->connect($mk_ip, $conf['mikrotik_user'] ?? '', $conf['mikrotik_pass'] ?? '', $mk_port)) {
+        echo json_encode(['status' => 'error', 'message' => 'Gagal terhubung ke MikroTik. ' . ($API->lastError ?: '')]);
+        exit;
+    }
+    $API->setSocketTimeout(4);
+
+    // Baca counter rx/tx-byte dari /interface/print (retry karena tunnel dapat lambat)
+    $readCounters = function() use ($API, $iface) {
+        for ($i = 1; $i <= 3; $i++) {
+            $API->write('/interface/print');
+            $rows = $API->read();
+            foreach ($rows as $row) {
+                if (is_array($row) && isset($row['name']) && $row['name'] === $iface) {
+                    if (isset($row['rx-byte']) && isset($row['tx-byte'])) {
+                        return array('rx' => (float)$row['rx-byte'], 'tx' => (float)$row['tx-byte']);
+                    }
+                }
+            }
+            usleep(150000);
+        }
+        return null;
+    };
+
+    $s1 = $readCounters();
+    if ($s1 === null) {
+        $API->disconnect();
+        echo json_encode(['status' => 'error', 'message' => 'Interface "' . $iface . '" tidak terbaca (periksa nama/statistik di MikroTik).']);
+        exit;
+    }
+    usleep(1100000);
+    $s2 = $readCounters();
+    $API->disconnect();
+    if ($s2 === null) {
+        echo json_encode(['status' => 'error', 'message' => 'Gagal membaca sampel kedua traffic.']);
+        exit;
+    }
+
+    $dt = 1.1;
+    $rxBps = $s2['rx'] >= $s1['rx'] ? (($s2['rx'] - $s1['rx']) * 8) / $dt : 0;
+    $txBps = $s2['tx'] >= $s1['tx'] ? (($s2['tx'] - $s1['tx']) * 8) / $dt : 0;
+
+    echo json_encode([
+        'status'    => 'success',
+        'interface' => $iface,
+        'rx'        => (int)round($rxBps),
+        'tx'        => (int)round($txBps)
+    ]);
+    exit;
+}
+
 elseif ($action == 'get_audit') {
     $limit = min(500, max(10, (int)($_GET['limit'] ?? 200)));
     $res = $conn->query("SELECT id, username, action, detail, customer_id, ip, waktu FROM audit_log ORDER BY id DESC LIMIT $limit");

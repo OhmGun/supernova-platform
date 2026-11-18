@@ -121,6 +121,11 @@ class RouterosAPI {
         return $ret;
     }
 
+    // Perbesar timeout membaca respons (berguna untuk perintah streaming / tunnel lambat)
+    public function setSocketTimeout($sec) {
+        if ($this->socket) @stream_set_timeout($this->socket, (int)$sec);
+    }
+
     public function read($parse = true) {
         $response = array();
         $current = array();
@@ -141,10 +146,7 @@ class RouterosAPI {
                     $current = array();
                 } elseif ($word === '!trap' || $word === '!fatal') {
                     $response['error'] = $word;
-                    if (!empty($current)) {
-                        $response[] = $current;
-                    }
-                    break;
+                    // lanjutkan membaca atribut (termasuk =message=) sampai !done
                 }
             } elseif (strpos($word, '=') === 0) {
                 $eq = strpos($word, '=', 1);
