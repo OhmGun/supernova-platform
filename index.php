@@ -163,7 +163,9 @@ $default_tab = 'dashboard';
   .alert-ok { border-left: 4px solid #10b981; }
   .alert-warn { border-left: 4px solid #f59e0b; }
 </style>
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" media="print" onload="this.media='all'">
+<noscript><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"></noscript>
 </head>
 <body>
 
@@ -211,33 +213,14 @@ $default_tab = 'dashboard';
       <div class="card" style="margin:0"><div style="font-size:11px; color:var(--muted)">Aktif</div><div id="dash-aktif" class="stat-val" style="color:#34d399"><div class="skel" style="width:45%"></div></div></div>
       <div class="card" style="margin:0"><div style="font-size:11px; color:var(--muted)">Isolir</div><div id="dash-isolir" class="stat-val" style="color:#fbbf24"><div class="skel" style="width:45%"></div></div></div>
       <div class="card" style="margin:0"><div style="font-size:11px; color:var(--muted)">Cabut / Nonaktif</div><div id="dash-cabut" class="stat-val" style="color:#fda4af"><div class="skel" style="width:45%"></div></div></div>
-      <div class="card" style="margin:0; border-color:#0d9488;"><div style="font-size:11px; color:var(--muted)"><i class="fa-solid fa-wifi"></i> Online (MikroTik)</div><div id="dash-mon-online" class="stat-val" style="color:#34d399"><div class="skel" style="width:45%"></div></div></div>
-      <div class="card" style="margin:0;"><div style="font-size:11px; color:var(--muted)"><i class="fa-solid fa-wifi-slash"></i> Offline (MikroTik)</div><div id="dash-mon-offline" class="stat-val" style="color:#fbbf24"><div class="skel" style="width:45%"></div></div></div>
+      <div class="card" style="margin:0; border-color:#0d9488;"><div style="font-size:11px; color:var(--muted)"><i class="fa-solid fa-wifi"></i> Online</div><div id="dash-mon-online" class="stat-val" style="color:#34d399"><div class="skel" style="width:45%"></div></div></div>
+      <div class="card" style="margin:0;"><div style="font-size:11px; color:var(--muted)"><i class="fa-solid fa-wifi-slash"></i> Offline</div><div id="dash-mon-offline" class="stat-val" style="color:#fbbf24"><div class="skel" style="width:45%"></div></div></div>
     </div>
 
     <div style="display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin-bottom:12px; font-size:12px; color:var(--muted);">
-      <span><i class="fa-solid fa-rotate" style="margin-right:4px;"></i> <span id="dash-mon-ts">...</span></span>
-      <button class="btn btn-sm btn-amber" id="dash-refresh-btn" onclick="loadDashboardRealtime()"><i class="fa-solid fa-rotate"></i> Segarkan Real-time</button>
+      <span><i class="fa-solid fa-rotate"></i> <span id="dash-mon-ts">memuat...</span></span>
+      <button class="btn btn-sm btn-amber" id="dash-refresh-btn" onclick="loadDashboardRealtime()"><i class="fa-solid fa-rotate"></i> Segarkan Status</button>
       <span id="dash-mon-err" class="hidden" style="color:#fda4af;"></span>
-    </div>
-
-    <div class="card" style="margin-bottom:12px; border-color: rgba(14,165,233,.4);">
-      <div class="card-header">
-        <span class="card-title" style="color:#38bdf8;"><i class="fa-solid fa-chart-line"></i> Traffic <span id="dash-traffic-iface">ether4</span> → Pelanggan</span>
-        <button class="btn btn-sm btn-outline-primary" id="dash-traffic-btn" onclick="loadDashboardTraffic()" title="Segarkan traffic"><i class="fa-solid fa-rotate"></i></button>
-      </div>
-      <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap:16px;">
-        <div>
-          <div style="font-size:11px; color:var(--muted);"><i class="fa-solid fa-arrow-down" style="color:#34d399;"></i> Unduh (RX)</div>
-          <div id="dash-traffic-rx" class="stat-val" style="color:#34d399;">—</div>
-          <div class="bar-track" style="margin-top:8px;"><div id="bar-traffic-rx" class="bar-fill" style="width:0; background:#10b981;"></div></div>
-        </div>
-        <div>
-          <div style="font-size:11px; color:var(--muted);"><i class="fa-solid fa-arrow-up" style="color:#38bdf8;"></i> Unggah (TX)</div>
-          <div id="dash-traffic-tx" class="stat-val" style="color:#38bdf8;">—</div>
-          <div class="bar-track" style="margin-top:8px;"><div id="bar-traffic-tx" class="bar-fill" style="width:0; background:#0ea5e9;"></div></div>
-        </div>
-      </div>
     </div>
 
     <div class="card" style="margin-bottom:16px;">
@@ -269,7 +252,7 @@ $default_tab = 'dashboard';
     </div>
 
     <div class="card" style="margin-top:16px;">
-      <div class="card-header"><span class="card-title"><i class="fa-solid fa-signal"></i> Status Real-time per Pelanggan</span></div>
+      <div class="card-header"><span class="card-title"><i class="fa-solid fa-signal"></i> Status Pelanggan per Kategori</span></div>
       <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(280px, 1fr)); gap:16px;">
         <div>
           <div class="mon-head" style="color:#34d399;"><i class="fa-solid fa-wifi"></i> Online</div>
@@ -549,23 +532,49 @@ $default_tab = 'dashboard';
 
     <div id="mon-error" class="alert alert-warn hidden" style="margin-bottom:12px;"></div>
 
-    <div class="card" style="padding:0; overflow:hidden;">
-      <div class="table-scroll">
-        <table>
-          <thead>
-            <tr>
-              <th id="th-mon-numid" onclick="sortMonitoring('numid')" style="white-space:nowrap; cursor:pointer;">No. ID</th>
-              <th id="th-mon-status" onclick="sortMonitoring('status')" style="white-space:nowrap; cursor:pointer;">Status</th>
-              <th id="th-mon-nama" onclick="sortMonitoring('client')" style="white-space:nowrap; cursor:pointer;">Nama Pelanggan</th>
-              <th id="th-mon-id" onclick="sortMonitoring('id')" style="white-space:nowrap; cursor:pointer;">ID PPPoE</th>
-              <th id="th-mon-port" onclick="sortMonitoring('port')" style="white-space:nowrap; cursor:pointer;">Port OLT</th>
-              <th id="th-mon-addr" onclick="sortMonitoring('address')" style="white-space:nowrap; cursor:pointer;">Alamat IP</th>
-              <th id="th-mon-remote" onclick="sortMonitoring('caller_id')" style="white-space:nowrap; cursor:pointer;">Remote ID</th>
-              <th id="th-mon-uptime" onclick="sortMonitoring('uptime')" style="white-space:nowrap; cursor:pointer;">Uptime</th>
-            </tr>
-          </thead>
-          <tbody id="monitor-tbody"></tbody>
-        </table>
+    <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(500px, 1fr)); gap:14px; align-items:start;">
+      <div class="card" style="padding:0; overflow:hidden;">
+        <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 14px; border-bottom:1px solid var(--border);">
+          <span style="font-weight:700; color:#34d399; font-size:13px;"><i class="fa-solid fa-wifi"></i> Online</span>
+          <span class="badge" style="color:#34d399; border-color:#10b981; background:rgba(16,185,129,.15);" id="mon-online-count">0</span>
+        </div>
+        <div class="table-scroll">
+          <table>
+            <thead>
+              <tr>
+                <th style="white-space:nowrap;">No. ID</th>
+                <th style="white-space:nowrap;">Nama Pelanggan</th>
+                <th style="white-space:nowrap;">ID PPPoE</th>
+                <th style="white-space:nowrap;">Port OLT</th>
+                <th style="white-space:nowrap;">Alamat IP</th>
+                <th style="white-space:nowrap;">Uptime</th>
+              </tr>
+            </thead>
+            <tbody id="monitor-tbody-online"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="card" style="padding:0; overflow:hidden;">
+        <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 14px; border-bottom:1px solid var(--border);">
+          <span style="font-weight:700; color:#fbbf24; font-size:13px;"><i class="fa-solid fa-wifi-slash"></i> Offline</span>
+          <span class="badge" style="color:#fcd34d; border-color:#f59e0b; background:rgba(245,158,11,.12);" id="mon-offline-count">0</span>
+        </div>
+        <div class="table-scroll">
+          <table>
+            <thead>
+              <tr>
+                <th style="white-space:nowrap;">No. ID</th>
+                <th style="white-space:nowrap;">Nama Pelanggan</th>
+                <th style="white-space:nowrap;">ID PPPoE</th>
+                <th style="white-space:nowrap;">Port OLT</th>
+                <th style="white-space:nowrap;">Alamat IP</th>
+                <th style="white-space:nowrap;">Uptime</th>
+              </tr>
+            </thead>
+            <tbody id="monitor-tbody-offline"></tbody>
+          </table>
+        </div>
       </div>
     </div>
   </div>
@@ -736,6 +745,7 @@ let qDb = '';
 let dbTotal = 0;
 let monSortCol = 'status';
 let monSortAsc = true;
+let monBusy = false;
 const pageSize = 50;
 const CSRF_TOKEN = '<?php echo htmlspecialchars(csrfToken(), ENT_QUOTES); ?>';
 
@@ -1628,62 +1638,18 @@ async function loadDashboard() {
     document.getElementById('bar-cabut').style.width = Math.round(cabut / base * 100) + '%';
   } catch(e) {}
   loadDashboardRealtime();
-  loadDashboardTraffic();
-}
-
-function fmtBps(bps) {
-  bps = Number(bps) || 0;
-  if (bps >= 1e9) return (bps / 1e9).toFixed(2) + ' Gbps';
-  if (bps >= 1e6) return (bps / 1e6).toFixed(2) + ' Mbps';
-  if (bps >= 1e3) return (bps / 1e3).toFixed(1) + ' Kbps';
-  return '0 bps';
-}
-
-async function loadDashboardTraffic() {
-  const rx = document.getElementById('dash-traffic-rx');
-  const tx = document.getElementById('dash-traffic-tx');
-  const btn = document.getElementById('dash-traffic-btn');
-  if (btn) { btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>'; btn.disabled = true; }
-  if (!window.trafficLoaded) {
-    if (rx) rx.innerHTML = '<div class="skel" style="width:50%"></div>';
-    if (tx) tx.innerHTML = '<div class="skel" style="width:50%"></div>';
-  }
-  try {
-    const res = await fetch('api.php?action=mikrotik_traffic&interface=ether4');
-    const j = await res.json();
-    if (j.status !== 'success') {
-      if (!window.trafficLoaded) { if (rx) rx.textContent = '—'; if (tx) tx.textContent = '—'; }
-      const er = document.getElementById('dash-mon-err');
-      if (er && j.message) { er.textContent = '⚠ ' + j.message; er.classList.remove('hidden'); }
-      return;
-    }
-    window.trafficLoaded = true;
-    const nameEl = document.getElementById('dash-traffic-iface');
-    if (nameEl) nameEl.textContent = j.interface;
-    const rxV = j.rx || 0, txV = j.tx || 0;
-    if (rx) rx.textContent = fmtBps(rxV);
-    if (tx) tx.textContent = fmtBps(txV);
-    const max = Math.max(rxV, txV, 1);
-    const br = document.getElementById('bar-traffic-rx');
-    const bt = document.getElementById('bar-traffic-tx');
-    if (br) br.style.width = Math.max(3, Math.round(rxV / max * 100)) + '%';
-    if (bt) bt.style.width = Math.max(3, Math.round(txV / max * 100)) + '%';
-  } catch(e) {
-    if (!window.trafficLoaded) { if (rx) rx.textContent = '—'; if (tx) tx.textContent = '—'; }
-  } finally {
-    if (btn) { btn.innerHTML = '<i class="fa-solid fa-rotate"></i>'; btn.disabled = false; }
-  }
 }
 
 async function loadDashboardRealtime() {
+  if (monBusy) return;
+  monBusy = true;
   const on = document.getElementById('dash-mon-online');
   const off = document.getElementById('dash-mon-offline');
   const ts = document.getElementById('dash-mon-ts');
   const er = document.getElementById('dash-mon-err');
   const btn = document.getElementById('dash-refresh-btn');
-  if (btn) { btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Memuat...'; btn.disabled = true; }
+  if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Memuat...'; }
   if (er) er.classList.add('hidden');
-  // Skeleton hanya pada pemuatan pertama; saat refresh angka lama tetap tampil
   if (!window.dashLoaded) {
     if (on) on.innerHTML = '<div class="skel" style="width:45%"></div>';
     if (off) off.innerHTML = '<div class="skel" style="width:45%"></div>';
@@ -1704,11 +1670,10 @@ async function loadDashboardRealtime() {
     else if (er) er.classList.add('hidden');
     renderDashLists(false);
   } catch(e) {
-    if (on && !window.dashLoaded) on.textContent = '?';
-    if (off && !window.dashLoaded) off.textContent = '?';
     if (ts && !window.dashLoaded) ts.textContent = 'Gagal ambil data';
   } finally {
-    if (btn) { btn.innerHTML = '<i class="fa-solid fa-rotate"></i> Segarkan Real-time'; btn.disabled = false; }
+    monBusy = false;
+    if (btn) { btn.innerHTML = '<i class="fa-solid fa-rotate"></i> Segarkan Status'; btn.disabled = false; }
   }
 }
 
@@ -1721,7 +1686,7 @@ function renderDashLists(loading) {
     offlineBox.innerHTML = '<div class="skel" style="margin:8px 10px;"></div>'.repeat(4);
     return;
   }
-  if (loading) return; // sedang refresh: biarkan daftar lama tampil
+  if (loading) return;
   const mk = (x) => `<div class="mon-item"><span style="font-weight:600;">${esc(x.client)}</span><span>${esc(String(x.id_pppoe || '').split('@')[0] || '-')}</span></div>`;
   const list = window.dashMon || [];
   const online = list.filter(x => x.online).sort((a, b) => (a.client || '').localeCompare(b.client || ''));
@@ -1738,9 +1703,11 @@ function monStatusBadge(online) {
 }
 
 async function loadMonitoring() {
-  const tbody = document.getElementById('monitor-tbody');
-  if (!tbody) return;
-  tbody.innerHTML = '<tr><td colspan="8" style="padding:14px 12px;">' + '<div class="skel" style="margin:6px 0;"></div>'.repeat(5) + '</td></tr>';
+  const onTb = document.getElementById('monitor-tbody-online');
+  const offTb = document.getElementById('monitor-tbody-offline');
+  const skRows = '<tr><td colspan="6" style="padding:14px 12px;">' + '<div class="skel" style="margin:6px 0;"></div>'.repeat(4) + '</td></tr>';
+  if (onTb) onTb.innerHTML = skRows;
+  if (offTb) offTb.innerHTML = skRows;
   const errBox = document.getElementById('mon-error');
   if (errBox) errBox.classList.add('hidden');
   try {
@@ -1763,7 +1730,8 @@ async function loadMonitoring() {
     window.monData = list;
     renderMonitoring(list);
   } catch (e) {
-    tbody.innerHTML = '<tr><td colspan="8" style="color:#fda4af">Error memuat data monitoring.</td></tr>';
+    if (onTb) onTb.innerHTML = '<tr><td colspan="6" style="color:#fda4af">Error memuat data monitoring.</td></tr>';
+    if (offTb) offTb.innerHTML = '<tr><td colspan="6" style="color:#fda4af">Error memuat data monitoring.</td></tr>';
   }
 }
 
@@ -1792,34 +1760,37 @@ function monSortKey(c) {
 }
 
 function renderMonitoring(list) {
-  const tbody = document.getElementById('monitor-tbody');
-  if (!tbody) return;
   if (!list) list = window.monData || [];
-  const sorted = list.map((c, i) => ({ c, i })).sort((a, b) => {
+  const onlineBox = document.getElementById('monitor-tbody-online');
+  const offlineBox = document.getElementById('monitor-tbody-offline');
+  if (!onlineBox || !offlineBox) return;
+
+  document.getElementById('mon-online-count').textContent = list.filter(x => x.online).length;
+  document.getElementById('mon-offline-count').textContent = list.filter(x => !x.online).length;
+
+  const cmp = (a, b) => {
     const va = monSortKey(a.c);
     const vb = monSortKey(b.c);
     if (typeof va === 'number' && typeof vb === 'number') return monSortAsc ? va - vb : vb - va;
     return monSortAsc ? String(va).localeCompare(String(vb)) : String(vb).localeCompare(String(va));
-  });
-  const colId = {
-    numid: 'th-mon-numid', status: 'th-mon-status', client: 'th-mon-nama', id: 'th-mon-id',
-    port: 'th-mon-port', address: 'th-mon-addr', caller_id: 'th-mon-remote', uptime: 'th-mon-uptime'
   };
-  for (const col in colId) {
-    const th = document.getElementById(colId[col]);
-    if (th) { th.classList.remove('asc', 'desc'); if (col === monSortCol) th.classList.add(monSortAsc ? 'asc' : 'desc'); }
-  }
-  tbody.innerHTML = sorted.length ? sorted.map(({ c, i }) => `
+
+  const mk = (c, i) => `
     <tr>
-      <td style="font-family:monospace; color:var(--muted)">${esc(String(c.id_pppoe || '').split('@')[0] || '-')}</td>
-      <td>${monStatusBadge(c.online)}</td>
+      <td style="font-family:monospace; color:var(--muted); white-space:nowrap;">${i + 1}</td>
       <td style="font-weight:600">${esc(c.client)}</td>
       <td style="font-family:monospace">${esc(c.id_pppoe)}</td>
-      <td style="font-family:monospace">${esc(c.port)}</td>
-      <td style="font-family:monospace; color:#38bdf8">${esc(c.address || '-')}</td>
-      <td style="font-family:monospace">${esc(c.caller_id || '-')}</td>
-      <td style="font-family:monospace">${esc(c.uptime || '-')}</td>
-    </tr>`).join('') : '<tr><td colspan="8" style="text-align:center; color:var(--muted); padding:28px;">Belum ada data pelanggan di database.</td></tr>';
+      <td style="font-family:monospace; white-space:nowrap;">${esc(c.port)}</td>
+      <td style="font-family:monospace; color:#38bdf8; white-space:nowrap;">${esc(c.address || '-')}</td>
+      <td style="font-family:monospace; white-space:nowrap;">${esc(c.uptime || '-')}</td>
+    </tr>`;
+  const emptyRow = (txt) => '<tr><td colspan="6" style="text-align:center; color:var(--muted); padding:24px;">' + txt + '</td></tr>';
+
+  const onlineRows = list.filter(x => x.online).map(c => ({ c })).sort(cmp);
+  const offlineRows = list.filter(x => !x.online).map(c => ({ c })).sort(cmp);
+
+  onlineBox.innerHTML = onlineRows.length ? onlineRows.map((r, i) => mk(r.c, i)).join('') : emptyRow('Tidak ada pelanggan online');
+  offlineBox.innerHTML = offlineRows.length ? offlineRows.map((r, i) => mk(r.c, i)).join('') : emptyRow('Tidak ada pelanggan offline');
 }
 
 function sortMonitoring(col) {
@@ -1829,14 +1800,10 @@ function sortMonitoring(col) {
 }
 
 function exportMonitoringCSV() {
-  const rows = document.querySelectorAll('#monitor-tbody tr');
-  const lines = ['NO,STATUS,NAMA,ID PPPOE,PORT OLT,ALAMAT IP,REMOTE ID,UPTIME'];
+  const rows = document.querySelectorAll('#monitor-tbody-online tr, #monitor-tbody-offline tr');
+  const lines = ['NO,NAMA,ID PPPOE,PORT OLT,ALAMAT IP,UPTIME'];
   rows.forEach((tr, i) => {
-    const cells = Array.from(tr.querySelectorAll('td')).map(td => {
-      let txt = (td.textContent || '').trim();
-      if (td.querySelector('.badge')) txt = (td.querySelector('.badge').textContent || '').trim();
-      return '"' + txt.replace(/"/g, '""') + '"';
-    });
+    const cells = Array.from(tr.querySelectorAll('td')).map(td => '"' + (td.textContent || '').trim().replace(/"/g, '""') + '"');
     lines.push((i + 1) + ',' + cells.join(','));
   });
   const blob = new Blob([lines.join('\n')], { type: 'text/csv' });
@@ -1851,7 +1818,7 @@ setInterval(() => {
   if (mv && !mv.classList.contains('hidden')) loadMonitoring();
 
   const dv = document.getElementById('view-dashboard');
-  if (dv && !dv.classList.contains('hidden')) { loadDashboardRealtime(); loadDashboardTraffic(); }
+  if (dv && !dv.classList.contains('hidden')) loadDashboardRealtime();
 }, 30000);
 </script>
 </body>

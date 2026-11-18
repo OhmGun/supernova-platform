@@ -258,6 +258,19 @@ function decryptConf($conf, $keys) {
     return $conf;
 }
 
+// Cache server-side singkat (mengurangi beban koneksi ke MikroTik saat banyak permintaan beruntun)
+function cacheRead($key, $ttlSec) {
+    $f = sys_get_temp_dir() . '/snv_' . md5($key) . '.json';
+    if (is_file($f) && (time() - @filemtime($f)) < $ttlSec) {
+        $d = @file_get_contents($f);
+        if ($d !== false && trim($d) !== '') return $d;
+    }
+    return null;
+}
+function cacheWrite($key, $json) {
+    @file_put_contents(sys_get_temp_dir() . '/snv_' . md5($key) . '.json', $json);
+}
+
 function execute_zte_ssh($cmd_array)
 {
     global $conn;
@@ -726,7 +739,10 @@ elseif ($action == 'get_stats') {
 elseif ($action == 'mikrotik_traffic') {
     require_once 'routeros_api.class.php';
 
-    $iface = isset($_GET['interface']) && $_GET['interface'] !== '' ? preg_replace('/[^A-Za-z0-9_\.\/\-]/', '', $_GET['interface']) : 'ether4';
+    $iface = isset($_GET['interface']) && $_GET['interface'] !== '' ? preg_replace('/[^A-Za-z0-9_\.\/\-]/', '', $_GET['interface']) : 'vlan210';
+
+    $cacheKey = 'traffic_' . $iface;
+    if (($cache = cacheRead($cacheKey, 4)) !== null) { echo $cache; exit; }
 
     $conf = [];
     $res = $conn->query("SELECT setting_key, setting_value FROM settings WHERE setting_key LIKE 'mikrotik_%'");
@@ -734,26 +750,25 @@ elseif ($action == 'mikrotik_traffic') {
     $d = app_decrypt($conf['mikrotik_pass'] ?? '');
     if ($d !== null) $conf['mikrotik_pass'] = $d;
 
-    $API = new RouterosAPI();
-    $API->ssl = (!empty($conf['mikrotik_ssl']) && ($conf['mikrotik_ssl'] === '1' || $conf['mikrotik_ssl'] === 'true'));
-    $mk_ip = $conf['mikrotik_ip'] ?? '';
-    $mk_port = !empty($conf['mikrotik_port']) ? (int)$conf['mikrotik_port'] : 8728;
+    $mkConf = $conf;
 
-    if ($mk_ip === '' || !$API->connect($mk_ip, $conf['mikrotik_user'] ?? '', $conf['mikrotik_pass'] ?? '', $mk_port)) {
-        echo json_encode(['status' => 'error', 'message' => 'Gagal terhubung ke MikroTik. ' . ($API->lastError ?: '')]);
-        exit;
-    }
-    $API->setSocketTimeout(4);
-
-    // Baca counter rx/tx-byte dari /interface/print (retry karena tunnel dapat lambat)
-    $readCounters = function() use ($API, $iface) {
+    // Baca counter rx/tx-byte milik $iface. Koneksi BARU per percobaan (anti-socket terkontaminasi/tunnel lambat).
+    $bacaCounter = function($iface) use ($mkConf) {
         for ($i = 1; $i <= 3; $i++) {
-            $API->write('/interface/print');
-            $rows = $API->read();
-            foreach ($rows as $row) {
-                if (is_array($row) && isset($row['name']) && $row['name'] === $iface) {
-                    if (isset($row['rx-byte']) && isset($row['tx-byte'])) {
-                        return array('rx' => (float)$row['rx-byte'], 'tx' => (float)$row['tx-byte']);
+            $API = new RouterosAPI();
+            $API->ssl = (!empty($mkConf['mikrotik_ssl']) && ($mkConf['mikrotik_ssl'] === '1' || $mkConf['mikrotik_ssl'] === 'true'));
+            $mk_ip = $mkConf['mikrotik_ip'] ?? '';
+            $mk_port = !empty($mkConf['mikrotik_port']) ? (int)$mkConf['mikrotik_port'] : 8728;
+            if ($mk_ip !== '' && $API->connect($mk_ip, $mkConf['mikrotik_user'] ?? '', $mkConf['mikrotik_pass'] ?? '', $mk_port)) {
+                $API->setSocketTimeout(4);
+                $API->write('/interface/print');
+                $rows = $API->read();
+                $API->disconnect();
+                foreach ($rows as $row) {
+                    if (is_array($row) && isset($row['name']) && $row['name'] === $iface) {
+                        if (isset($row['rx-byte']) && isset($row['tx-byte'])) {
+                            return array('rx' => (float)$row['rx-byte'], 'tx' => (float)$row['tx-byte']);
+                        }
                     }
                 }
             }
@@ -762,17 +777,15 @@ elseif ($action == 'mikrotik_traffic') {
         return null;
     };
 
-    $s1 = $readCounters();
+    $s1 = $bacaCounter($iface);
     if ($s1 === null) {
-        $API->disconnect();
-        echo json_encode(['status' => 'error', 'message' => 'Interface "' . $iface . '" tidak terbaca (periksa nama/statistik di MikroTik).']);
+        echo json_encode(['status' => 'error', 'message' => 'Interface "' . $iface . '" tidak terbaca (periksa nama interface di MikroTik).']);
         exit;
     }
     usleep(1100000);
-    $s2 = $readCounters();
-    $API->disconnect();
+    $s2 = $bacaCounter($iface);
     if ($s2 === null) {
-        echo json_encode(['status' => 'error', 'message' => 'Gagal membaca sampel kedua traffic.']);
+        echo json_encode(['status' => 'error', 'message' => 'Gagal membaca sampel kedua traffic "' . $iface . '".']);
         exit;
     }
 
@@ -780,12 +793,14 @@ elseif ($action == 'mikrotik_traffic') {
     $rxBps = $s2['rx'] >= $s1['rx'] ? (($s2['rx'] - $s1['rx']) * 8) / $dt : 0;
     $txBps = $s2['tx'] >= $s1['tx'] ? (($s2['tx'] - $s1['tx']) * 8) / $dt : 0;
 
-    echo json_encode([
+    $payload = json_encode([
         'status'    => 'success',
         'interface' => $iface,
         'rx'        => (int)round($rxBps),
         'tx'        => (int)round($txBps)
     ]);
+    cacheWrite($cacheKey, $payload);
+    echo $payload;
     exit;
 }
 
@@ -928,6 +943,8 @@ elseif ($action == 'mikrotik_get_profiles') {
 elseif ($action == 'mikrotik_monitor') {
     require_once 'routeros_api.class.php';
 
+    if (($cache = cacheRead('monitor', 5)) !== null) { echo $cache; exit; }
+
     $conf = [];
     $res = $conn->query("SELECT setting_key, setting_value FROM settings WHERE setting_key LIKE 'mikrotik_%'");
     while($r = $res->fetch_assoc()) { $conf[$r['setting_key']] = $r['setting_value']; }
@@ -982,12 +999,14 @@ $m_port = (!empty($conf['mikrotik_port'])) ? (int)$conf['mikrotik_port'] : 8728;
         ];
     }
 
-    echo json_encode([
+    $payload = json_encode([
         'status'       => 'success',
         'online_total' => count($active),
         'online'       => $list,
         'error'        => $err
     ]);
+    if ($err === null) cacheWrite('monitor', $payload);
+    echo $payload;
     exit;
 }
 elseif ($action == 'mikrotik_add_secret') {
