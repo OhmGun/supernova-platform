@@ -471,14 +471,14 @@ $default_tab = 'dashboard';
         <table>
           <thead>
             <tr>
-              <th>No. ID</th>
-              <th>Status</th>
-              <th>Nama Pelanggan</th>
-              <th>ID PPPoE</th>
-              <th>Port OLT</th>
-              <th>Alamat IP</th>
-              <th>Remote ID</th>
-              <th>Uptime</th>
+              <th id="th-mon-numid" onclick="sortMonitoring('numid')" style="white-space:nowrap; cursor:pointer;">No. ID</th>
+              <th id="th-mon-status" onclick="sortMonitoring('status')" style="white-space:nowrap; cursor:pointer;">Status</th>
+              <th id="th-mon-nama" onclick="sortMonitoring('client')" style="white-space:nowrap; cursor:pointer;">Nama Pelanggan</th>
+              <th id="th-mon-id" onclick="sortMonitoring('id')" style="white-space:nowrap; cursor:pointer;">ID PPPoE</th>
+              <th id="th-mon-port" onclick="sortMonitoring('port')" style="white-space:nowrap; cursor:pointer;">Port OLT</th>
+              <th id="th-mon-addr" onclick="sortMonitoring('address')" style="white-space:nowrap; cursor:pointer;">Alamat IP</th>
+              <th id="th-mon-remote" onclick="sortMonitoring('caller_id')" style="white-space:nowrap; cursor:pointer;">Remote ID</th>
+              <th id="th-mon-uptime" onclick="sortMonitoring('uptime')" style="white-space:nowrap; cursor:pointer;">Uptime</th>
             </tr>
           </thead>
           <tbody id="monitor-tbody"></tbody>
@@ -651,6 +651,8 @@ let editingId = null;
 let pageDb = 1;
 let qDb = '';
 let dbTotal = 0;
+let monSortCol = 'status';
+let monSortAsc = true;
 const pageSize = 50;
 const CSRF_TOKEN = '<?php echo htmlspecialchars(csrfToken(), ENT_QUOTES); ?>';
 
@@ -1574,23 +1576,72 @@ async function loadMonitoring() {
     document.getElementById('mon-offline').textContent = list.length - onlineCount;
     document.getElementById('mon-mk').textContent = json.online_total || 0;
 
-    tbody.innerHTML = list.map((c, i) => `
-      <tr>
-        <td style="font-family:monospace; color:var(--muted)">${esc(String(c.id_pppoe || '').split('@')[0] || '-')}</td>
-        <td>${monStatusBadge(c.online)}</td>
-        <td style="font-weight:600">${esc(c.client)}</td>
-        <td style="font-family:monospace">${esc(c.id_pppoe)}</td>
-        <td style="font-family:monospace">${esc(c.port)}</td>
-        <td style="font-family:monospace; color:#38bdf8">${esc(c.address || '-')}</td>
-        <td style="font-family:monospace">${esc(c.caller_id || '-')}</td>
-        <td style="font-family:monospace">${esc(c.uptime || '-')}</td>
-      </tr>`).join('');
-    if (!list.length) {
-      tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; color:var(--muted); padding:28px;">Belum ada data pelanggan di database.</td></tr>';
-    }
+    window.monData = list;
+    renderMonitoring(list);
   } catch (e) {
     tbody.innerHTML = '<tr><td colspan="8" style="color:#fda4af">Error memuat data monitoring.</td></tr>';
   }
+}
+
+function parseUptime(u) {
+  u = String(u || '');
+  let d = 0, h = 0, mi = 0, s = 0, m;
+  if ((m = u.match(/(\d+)d/))) d = +m[1];
+  if ((m = u.match(/(\d+)h/))) h = +m[1];
+  if ((m = u.match(/(\d+)m/))) mi = +m[1];
+  if ((m = u.match(/(\d+)s/))) s = +m[1];
+  return ((d * 24 + h) * 60 + mi) * 60 + s;
+}
+
+function monSortKey(c) {
+  switch (monSortCol) {
+    case 'numid':     return Number(String(c.id_pppoe || '').split('@')[0] || 0);
+    case 'status':    return c.online ? 1 : 0;
+    case 'client':    return (c.client || '').toLowerCase();
+    case 'id':        return (c.id_pppoe || '').toLowerCase();
+    case 'port':      return (c.port || '').toLowerCase();
+    case 'address':   return (c.address || '').toLowerCase();
+    case 'caller_id': return (c.caller_id || '').toLowerCase();
+    case 'uptime':    return parseUptime(c.uptime);
+    default:          return (c.client || '').toLowerCase();
+  }
+}
+
+function renderMonitoring(list) {
+  const tbody = document.getElementById('monitor-tbody');
+  if (!tbody) return;
+  if (!list) list = window.monData || [];
+  const sorted = list.map((c, i) => ({ c, i })).sort((a, b) => {
+    const va = monSortKey(a.c);
+    const vb = monSortKey(b.c);
+    if (typeof va === 'number' && typeof vb === 'number') return monSortAsc ? va - vb : vb - va;
+    return monSortAsc ? String(va).localeCompare(String(vb)) : String(vb).localeCompare(String(va));
+  });
+  const colId = {
+    numid: 'th-mon-numid', status: 'th-mon-status', client: 'th-mon-nama', id: 'th-mon-id',
+    port: 'th-mon-port', address: 'th-mon-addr', caller_id: 'th-mon-remote', uptime: 'th-mon-uptime'
+  };
+  for (const col in colId) {
+    const th = document.getElementById(colId[col]);
+    if (th) { th.classList.remove('asc', 'desc'); if (col === monSortCol) th.classList.add(monSortAsc ? 'asc' : 'desc'); }
+  }
+  tbody.innerHTML = sorted.length ? sorted.map(({ c, i }) => `
+    <tr>
+      <td style="font-family:monospace; color:var(--muted)">${esc(String(c.id_pppoe || '').split('@')[0] || '-')}</td>
+      <td>${monStatusBadge(c.online)}</td>
+      <td style="font-weight:600">${esc(c.client)}</td>
+      <td style="font-family:monospace">${esc(c.id_pppoe)}</td>
+      <td style="font-family:monospace">${esc(c.port)}</td>
+      <td style="font-family:monospace; color:#38bdf8">${esc(c.address || '-')}</td>
+      <td style="font-family:monospace">${esc(c.caller_id || '-')}</td>
+      <td style="font-family:monospace">${esc(c.uptime || '-')}</td>
+    </tr>`).join('') : '<tr><td colspan="8" style="text-align:center; color:var(--muted); padding:28px;">Belum ada data pelanggan di database.</td></tr>';
+}
+
+function sortMonitoring(col) {
+  if (monSortCol === col) monSortAsc = !monSortAsc;
+  else { monSortCol = col; monSortAsc = true; }
+  renderMonitoring(window.monData || []);
 }
 
 function exportMonitoringCSV() {
