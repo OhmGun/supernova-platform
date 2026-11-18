@@ -369,7 +369,7 @@ $default_tab = $is_admin ? 'broadband' : 'pelanggan';
 </div>
 
     <div class="card" style="padding:0; overflow:hidden;">
-      <div>
+      <div style="overflow-x:auto;">
         <table>
           <thead>
             <tr>
@@ -849,20 +849,21 @@ function renderCustomers() {
         <td style="font-family:monospace; color:#fcd34d">${esc(c.sn || '-')}</td>
         <td style="font-family:monospace">${esc(c.id_pppoe)}</td>
         <td style="font-family:monospace; color:${validPort ? '#6ee7b7' : '#fda4af'}">${esc(c.port)}</td>
-        <td>${statusBadge(c.status)}
-            <select class="admin-only" style="width:auto; padding:2px 4px; font-size:11px; margin-left:6px;" onchange="setCustomerStatus(${c.id}, this.value)">
+        <td style="white-space:nowrap;">
+          ${statusBadge(c.status)}
+            <select class="admin-only" style="width:auto; padding:2px 4px; font-size:11px; margin-left:6px; vertical-align:middle;" onchange="setCustomerStatus(${c.id}, this.value)">
               <option value="Aktif"${c.status === 'Aktif' ? ' selected' : ''}>Aktif</option>
               <option value="Isolir"${c.status === 'Isolir' ? ' selected' : ''}>Isolir</option>
               <option value="Cabut"${c.status === 'Cabut' ? ' selected' : ''}>Cabut</option>
             </select>
         </td>
-        <td style="text-align:right; min-width: 250px;">
+        <td style="text-align:right; white-space:nowrap;">
           ${validPort ? `
             <button class="btn btn-sm btn-outline-primary" title="Cek Status Koneksi" onclick="reqOLT('status', '${jsStr(c.port)}')"><i class="fa-solid fa-wifi"></i></button>
             <button class="btn btn-sm btn-outline-primary" title="Cek Redaman DBm" onclick="reqOLT('power', '${jsStr(c.port)}')"><i class="fa-solid fa-bolt"></i></button>
             <button class="btn btn-sm btn-rose admin-only" title="Restart ONT Pelanggan" onclick="reqOLT('reboot', '${jsStr(c.port)}')"><i class="fa-solid fa-rotate-right"></i></button>
           ` : ''}
-          <button class="btn btn-sm btn-outline-primary" style="margin-left:8px;" title="Muat Parameter" onclick="loadCustomer(${c.id})"><i class="fa-solid fa-arrow-up-right-from-square"></i></button>
+          <button class="btn btn-sm btn-outline-primary" title="Muat Parameter" onclick="loadCustomer(${c.id})"><i class="fa-solid fa-arrow-up-right-from-square"></i></button>
           <button class="btn btn-sm btn-outline-primary" title="Riwayat" onclick="showHistory(${c.id})"><i class="fa-solid fa-clock-rotate-left"></i></button>
           <button class="btn btn-sm btn-amber admin-only" title="Edit" onclick="openEditModal(${c.id})"><i class="fa-solid fa-pen"></i></button>
           <button class="btn btn-sm btn-rose admin-only" title="Hapus" onclick="deleteCustomer(${c.id})"><i class="fa-solid fa-trash"></i></button>
