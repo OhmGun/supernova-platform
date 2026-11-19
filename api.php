@@ -289,7 +289,7 @@ function execute_zte_ssh($cmd_array)
 
     try {
 
-        $ssh = new SSH2($conf['olt_ip']);
+        $ssh = new SSH2($conf['olt_ip'], (int)($conf['olt_port'] ?: 22));
 
         if (!$ssh->login($conf['olt_user'], $conf['olt_pass'])) {
             return 'LOGIN GAGAL';

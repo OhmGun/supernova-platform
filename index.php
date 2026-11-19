@@ -524,7 +524,8 @@ $default_tab = 'dashboard';
       <div style="font-size:12px; color:var(--muted);">
         Status diambil langsung dari sesi aktif PPPoE MikroTik (dicocokkan via ID PPPoE). Auto-refresh tiap 30 detik.
       </div>
-      <div style="display:flex; gap:8px;">
+      <div style="display:flex; gap:8px; align-items:center;">
+        <input type="text" id="mon-search" placeholder="Cari nama / ID PPPoE / IP / port..." oninput="filterMonitoring()" style="min-width:230px; padding:8px 12px; border-radius:8px; border:1px solid var(--border); background:#0b1220; color:var(--text); font-size:12px;">
         <button class="btn btn-amber" onclick="loadMonitoring()"><i class="fa-solid fa-rotate"></i> Segarkan</button>
         <button class="btn btn-emerald" onclick="exportMonitoringCSV()"><i class="fa-solid fa-download"></i> Export CSV</button>
       </div>
@@ -1728,7 +1729,7 @@ async function loadMonitoring() {
     document.getElementById('mon-mk').textContent = json.online_total || 0;
 
     window.monData = list;
-    renderMonitoring(list);
+    filterMonitoring();
   } catch (e) {
     if (onTb) onTb.innerHTML = '<tr><td colspan="6" style="color:#fda4af">Error memuat data monitoring.</td></tr>';
     if (offTb) offTb.innerHTML = '<tr><td colspan="6" style="color:#fda4af">Error memuat data monitoring.</td></tr>';
@@ -1793,10 +1794,22 @@ function renderMonitoring(list) {
   offlineBox.innerHTML = offlineRows.length ? offlineRows.map((r, i) => mk(r.c, i)).join('') : emptyRow('Tidak ada pelanggan offline');
 }
 
+function filterMonitoring() {
+  const q = (document.getElementById('mon-search')?.value || '').trim().toLowerCase();
+  const all = window.monData || [];
+  const filtered = q ? all.filter(c =>
+    String(c.client || '').toLowerCase().includes(q) ||
+    String(c.id_pppoe || '').toLowerCase().includes(q) ||
+    String(c.address || '').toLowerCase().includes(q) ||
+    String(c.port || '').toLowerCase().includes(q)
+  ) : all;
+  renderMonitoring(filtered);
+}
+
 function sortMonitoring(col) {
   if (monSortCol === col) monSortAsc = !monSortAsc;
   else { monSortCol = col; monSortAsc = true; }
-  renderMonitoring(window.monData || []);
+  filterMonitoring();
 }
 
 function exportMonitoringCSV() {
