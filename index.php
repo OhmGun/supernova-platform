@@ -271,16 +271,19 @@ $default_tab = 'dashboard';
       <div class="card">
         <div class="card-header">
           <span class="card-title">Parameter Aktivasi Broadband</span>
-          <button class="btn btn-sm btn-emerald admin-only" onclick="saveToDB()">+ Simpan ke MySQL</button>
+          <div style="display:flex; gap:8px; align-items:center;">
+            <span id="bb-edit-badge" class="hidden" style="font-size:11px; padding:3px 10px; border-radius:99px; background:rgba(52,211,153,0.15); color:#34d399; border:1px solid rgba(52,211,153,0.4);">↻ Update Pelanggan</span>
+            <button class="btn btn-sm btn-emerald admin-only" onclick="saveToDB()">+ Simpan ke MySQL</button>
+          </div>
         </div>
         <div class="form-grid">
           <div><label>Interface GPON-OLT</label><input type="text" id="bb-iface" value="1/2/4" oninput="checkConflictOnly()"></div>
           <div><label>ONU ID</label><input type="number" id="bb-onu" value="10" oninput="checkConflictOnly()"></div>
           <div id="bb-port-alert" class="col-span-2 alert"></div>
-          <div><label>SN ONT</label><input type="text" id="bb-sn" value="ZTEGD6D940BB" style="color:#fcd34d"></div>
+          <div><label>SN ONT</label><input type="text" id="bb-sn" placeholder="ZTEGD6D940BB" style="color:#fcd34d"></div>
           <div><label>Tipe ONT</label><input type="text" id="bb-type" value="ALL-ONT"></div>
-          <div class="col-span-2"><label>Nama Pelanggan (Description)</label><input type="text" id="bb-nama" value="LITTLE LODGE"></div>
-          <div><label>User ID PPPoE</label><input type="text" id="bb-userid" value="121251720115" style="color:#6ee7b7"></div>
+          <div class="col-span-2"><label>Nama Pelanggan (Description)</label><input type="text" id="bb-nama" placeholder="Nama Pelanggan"></div>
+          <div><label>User ID PPPoE</label><input type="text" id="bb-userid" placeholder="121251720115" style="color:#6ee7b7"></div>
           <div>
             <label>Domain PPPoE</label>
             <select id="bb-domain">
@@ -313,6 +316,10 @@ $default_tab = 'dashboard';
           </div>
         </div>
       </div>
+      <div class="card">
+        <div class="card-header"><span class="card-title" style="color:#fbbf24">CARI ONU BY SN</span><button class="btn btn-sm btn-muted admin-only" onclick="copyText('out-bb-reboot')">Copy Script</button></div>
+        <pre id="out-bb-reboot" style="color:#fde68a; min-height:40px;">Klik GENERATE di kiri...</pre>
+      </div>
     </div>
     
     <div>
@@ -336,10 +343,6 @@ $default_tab = 'dashboard';
         <div class="card-header"><span class="card-title" style="color:#a5b4fc">5. CONFIG LAYANAN PPPoE</span><button class="btn btn-sm admin-only" onclick="copyText('out-bb-service')">Copy Script</button></div>
         <pre id="out-bb-service" style="color:#c7d2fe">Klik GENERATE di kiri...</pre>
       </div>
-      <div class="card">
-        <div class="card-header"><span class="card-title" style="color:#fbbf24">6. RESTART / REBOOT ONT</span><button class="btn btn-sm btn-muted admin-only" onclick="copyText('out-bb-reboot')">Copy Script</button></div>
-        <pre id="out-bb-reboot" style="color:#fde68a; min-height:40px;">Klik GENERATE di kiri...</pre>
-      </div>
     </div>
   </div>
 
@@ -353,7 +356,13 @@ $default_tab = 'dashboard';
         <div class="form-grid">
           <div class="col-span-2">
             <label>Username PPPoE (User ID + Domain)</label>
-            <input type="text" id="mk-username" placeholder="Contoh: 1251720115@supernovanet" autocomplete="off">
+            <div style="display:flex; gap:8px;">
+              <input type="text" id="mk-username" placeholder="Contoh: 121251720115@supernovanet" autocomplete="off" style="flex:1">
+              <button type="button" class="btn btn-sm btn-emerald" style="height:38px; white-space:nowrap;" onclick="generateMkUsername()" title="Auto-generate ID unik (cek MikroTik + database)">
+                <i class="fa-solid fa-dice"></i> GENERATE ID
+              </button>
+            </div>
+            <div id="mk-username-status" style="font-size:11px; margin-top:2px;"></div>
           </div>
           <div class="col-span-2">
             <label>Password PPPoE</label>
@@ -884,16 +893,16 @@ function generateBroadbandScript() {
   const nama = document.getElementById('bb-nama').value.trim();
   const userid = document.getElementById('bb-userid').value.trim();
   const domain = document.getElementById('bb-domain').value;
-  const pass = document.getElementById('bb-pass').value.trim();
-  const vlan = document.getElementById('bb-vlan').value.trim();
-  const profDown = document.getElementById('bb-prof-down').value.trim();
-  const vlanProf = document.getElementById('bb-vlan-prof').value.trim();
+  const pass = document.getElementById('bb-pass').value.trim() || 'supernova';
+  const vlan = document.getElementById('bb-vlan').value.trim() || '210';
+  const profDown = document.getElementById('bb-prof-down').value.trim() || 'pppoe';
+  const vlanProf = document.getElementById('bb-vlan-prof').value.trim() || 'PPPOE';
 
   checkConflictOnly();
 
   document.getElementById('out-bb-state').textContent = `show gpon onu state gpon-olt_${iface}`;
   document.getElementById('out-bb-delete').textContent = `configure t\ninterface gpon-olt_${iface}\nno onu ${onu}\nexit`;
-  document.getElementById('out-bb-regis').textContent = `config t\ninterface gpon-olt_${iface}\nonu ${onu} type ${type} sn ${sn}\nexit`;
+  document.getElementById('out-bb-regis').textContent = `config t\ninterface gpon-olt_${iface}\nonu ${onu} type ALL-ONT sn ${sn}\nexit`;
   
   document.getElementById('out-bb-service').textContent = 
 `interface gpon-onu_${iface}:${onu}
@@ -917,14 +926,41 @@ Show gpon remote wan-ip gpon-onu_${iface}:${onu}
 end
 write`;
 
-  document.getElementById('out-bb-reboot').textContent = `config t\npon-onu-mng gpon-onu_${iface}:${onu}\nreboot\nexit\nexit`;
+  document.getElementById('out-bb-reboot').textContent = `show gpon onu by sn ${sn}`;
   
   // Auto isi form MikroTik Tab sebelah
   document.getElementById('mk-username').value = userid + domain;
-  document.getElementById('mk-password').value = pass;
+  document.getElementById('mk-password').value = pass || 'supernova';
   document.getElementById('mk-comment').value = nama;
   
   showToast('Script Broadband di-generate & disinkronkan ke form MikroTik!');
+}
+
+// ================= FUNGSI AUTO-GENERATE ID PPPoE (cek MikroTik + DB) =================
+async function generateMkUsername() {
+  const btn = event && event.currentTarget ? event.currentTarget : null;
+  const statusEl = document.getElementById('mk-username-status');
+  const setStatus = (txt, color) => {
+    if (statusEl) { statusEl.textContent = txt; statusEl.style.color = color || 'var(--muted)'; }
+  };
+  if (btn) btn.disabled = true;
+  setStatus('Men-generate ID unik... cek MikroTik + database...', '#38bdf8');
+  try {
+    const res = await fetch('api.php?action=mikrotik_generate_username', { method: 'POST', body: '{}' });
+    const json = await res.json();
+    if (json.status === 'success' && json.username) {
+      document.getElementById('mk-username').value = json.username;
+      setStatus('✓ ID ' + json.id + ' — dicek ke MikroTik' + (json.checked_mikrotik ? ' & database, tidak konflik' : ' (router tidak terhubung, dicek DB saja)'), '#34d399');
+      showToast('ID auto-generate: ' + json.username);
+    } else {
+      setStatus('[X] ' + (json.message || 'Gagal generate ID'), '#f87171');
+      alert('[X] ' + (json.message || 'Gagal generate ID'));
+    }
+  } catch (e) {
+    setStatus('[X] Error: gagal hubungi API generate.', '#f87171');
+  } finally {
+    if (btn) btn.disabled = false;
+  }
 }
 
 // ================= FUNGSI CREATE MIKROTIK SECRET VIA API =================
@@ -1280,22 +1316,66 @@ function exportOfflineTXT(text)
 
 function closeTerminalModal() { document.getElementById('olt-terminal-modal').classList.add('hidden'); }
 
+// ============================================================
+// Sinkronisasi Broadband <-> Pelanggan
+// Menampilkan badge saat sedang meng-update pelanggan tertentu
+// ============================================================
+function updateEditBadge() {
+  const badge = document.getElementById('bb-edit-badge');
+  if (!badge) return;
+  if (editingId != null && editingId !== '' && editingId !== undefined) {
+    const c = customers.find(x => x.id == editingId);
+    badge.textContent = '↻ Update Pelanggan' + (c ? ': ' + esc(c.client) : ' #' + editingId);
+    badge.classList.remove('hidden');
+  } else {
+    badge.classList.add('hidden');
+  }
+}
+
+// Cocokkan pelanggan existing berdasarkan nama atau ID PPPoE (case-insensitive)
+function findMatchingCustomer(nama, id_pppoe) {
+  const n = String(nama || '').trim().toLowerCase();
+  const ip = String(id_pppoe || '').trim().toLowerCase();
+  if (!n && !ip) return null;
+  let best = null;
+  for (const c of customers) {
+    const cn = String(c.client || '').trim().toLowerCase();
+    const ci = String(c.id_pppoe || '').trim().toLowerCase();
+    // prioritas: ID PPPoE persis, lalu nama persis, lalu nama mengandung (dua arah)
+    if (ip && ci === ip) return c;
+    if (!best && n && cn === n) best = c;
+  }
+  return best;
+}
+
 async function saveToDB() {
+  const nama = document.getElementById('bb-nama').value.trim();
+  const userid = document.getElementById('bb-userid').value.trim();
+  const domain = document.getElementById('bb-domain').value;
+  const id_pppoe = userid + domain;
+  if (!nama) { alert("Nama pelanggan (Description) wajib diisi."); return; }
+  if (!userid) { alert("User ID PPPoE wajib diisi (bisa auto-generate via tombol Generate)."); return; }
   const data = {
-    client: document.getElementById('bb-nama').value.trim(),
+    client: nama,
     paket: Number(document.getElementById('bb-paket').value) || 30,
-    sn: document.getElementById('bb-sn').value.trim().toUpperCase(),
-    id_pppoe: document.getElementById('bb-userid').value.trim() + document.getElementById('bb-domain').value,
-    port: document.getElementById('bb-iface').value.trim() + ':' + document.getElementById('bb-onu').value.trim()
+    sn: document.getElementById('bb-sn').value.trim().toUpperCase() || '-',
+    id_pppoe,
+    port: (document.getElementById('bb-iface').value.trim() && document.getElementById('bb-onu').value.trim())
+      ? document.getElementById('bb-iface').value.trim() + ':' + document.getElementById('bb-onu').value.trim()
+      : 'BELUM ADA'
   };
-  const isEdit = editingId !== null && editingId !== undefined && editingId !== '';
-  if (isEdit) data.id = editingId;
+  // Jika editingId ter-set (dari menu Pelanggan -> Muat Parameter), kirim ke action update.
+  // Jika tidak, kirim ke action add — API di sisi server otomatis mendeteksi duplikat
+  // (id_pppoe / nama sama) dan meng-update pelanggan yang sudah ada (bukan insert baru).
+  const isEdit = editingId != null && editingId !== '' && editingId !== undefined;
+  if (isEdit) data.id = Number(editingId);
   try {
     let res = await fetch('api.php?action=' + (isEdit ? 'update' : 'add'), { method: 'POST', body: JSON.stringify(data) });
     let json = await res.json();
     if (json.status === 'success') {
-      showToast(isEdit ? 'Data pelanggan diperbarui!' : 'Tersimpan di MySQL!');
+      showToast(json.updated || isEdit ? 'Data pelanggan diperbarui & sinkron ke menu Pelanggan!' : 'Tersimpan di MySQL!');
       editingId = null;
+      updateEditBadge();
       loadDataDB();
     } else { alert("Gagal simpan: " + json.message); }
   } catch (e) { alert("Error API MySQL"); }
@@ -1553,6 +1633,8 @@ function loadCustomer(id) {
   document.getElementById('bb-paket').value = c.paket || 30;
   if (c.sn && c.sn !== '-') document.getElementById('bb-sn').value = c.sn;
   
+  updateEditBadge();
+
   // Auto sinkron ke form MikroTik
   document.getElementById('mk-username').value = c.id_pppoe;
   document.getElementById('mk-comment').value = c.client;
@@ -1564,6 +1646,7 @@ function loadCustomer(id) {
 
 function resetBB() {
   editingId = null;
+  updateEditBadge();
   document.getElementById('bb-nama').value = '';
   document.getElementById('bb-sn').value = '';
   document.getElementById('bb-userid').value = '';

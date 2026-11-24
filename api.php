@@ -422,6 +422,8 @@ elseif ($action == 'olt_reboot') {
         "config t",
         "pon-onu-mng gpon-onu_$port",
         "reboot",
+        "yes",
+        "exit",
         "exit"
     ]);
 
@@ -535,6 +537,40 @@ elseif ($action == 'add') {
     $norm = normalizeCustomer($data, $err);
     if (!$norm) {
         echo json_encode(['status' => 'error', 'message' => $err]);
+        exit;
+    }
+    // Sinkronisasi Broadband -> Pelanggan:
+    // Jika id_pppoe ATAU client sudah ada, jangan insert baru (hindari duplikat),
+    // cukup update data pelanggan yang sudah ada.
+    $existing = null;
+    $byPppoe = $conn->prepare("SELECT id FROM pelanggan WHERE id_pppoe = ? LIMIT 1");
+    if ($byPppoe) {
+        $byPppoe->bind_param('s', $norm['id_pppoe']);
+        $byPppoe->execute();
+        $r = $byPppoe->get_result();
+        if ($row = $r->fetch_assoc()) $existing = $row['id'];
+        $byPppoe->close();
+    }
+    if (!$existing) {
+        $byClient = $conn->prepare("SELECT id FROM pelanggan WHERE client = ? LIMIT 1");
+        if ($byClient) {
+            $byClient->bind_param('s', $norm['client']);
+            $byClient->execute();
+            $r = $byClient->get_result();
+            if ($row = $r->fetch_assoc()) $existing = $row['id'];
+            $byClient->close();
+        }
+    }
+    if ($existing) {
+        $stmt = $conn->prepare("UPDATE pelanggan SET client=?, paket=?, sn=?, id_pppoe=?, port=?, status='Aktif' WHERE id=?");
+        if ($stmt) {
+            $stmt->bind_param('sisssi', $norm['client'], $norm['paket'], $norm['sn'], $norm['id_pppoe'], $norm['port'], $existing);
+            if ($stmt->execute()) {
+                addAudit($conn, 'UBAH_PELANGGAN_BROADBAND', $norm['client'] . ' | ' . $norm['id_pppoe'], $existing);
+                echo json_encode(['status' => 'success', 'updated' => true, 'id' => $existing]);
+            } else echo json_encode(['status' => 'error', 'message' => $conn->error]);
+            $stmt->close();
+        } else echo json_encode(['status' => 'error', 'message' => $conn->error]);
         exit;
     }
     $stmt = $conn->prepare("INSERT INTO pelanggan (client, paket, sn, id_pppoe, port, status) VALUES (?, ?, ?, ?, ?, ?)");
@@ -1009,6 +1045,80 @@ $m_port = (!empty($conf['mikrotik_port'])) ? (int)$conf['mikrotik_port'] : 8728;
     echo $payload;
     exit;
 }
+elseif ($action == 'mikrotik_generate_username') {
+    require_once 'routeros_api.class.php';
+
+    $conf = [];
+    $res = $conn->query("SELECT setting_key, setting_value FROM settings WHERE setting_key LIKE 'mikrotik_%'");
+    while($r = $res->fetch_assoc()) { $conf[$r['setting_key']] = $r['setting_value']; }
+    $conf = decryptConf($conf, ['mikrotik_pass']);
+
+    $m_ip   = $conf['mikrotik_ip'] ?? '192.168.88.1';
+    $m_port = (!empty($conf['mikrotik_port'])) ? (int)$conf['mikrotik_port'] : 8728;
+    $m_user = $conf['mikrotik_user'] ?? 'admin';
+    $m_pass = $conf['mikrotik_pass'] ?? '';
+
+    $domain = '@supernovanet';
+    $used = [];
+
+    // 1. Kumpulkan ID dari database pelanggan
+    $rDb = $conn->query("SELECT id_pppoe FROM pelanggan WHERE id_pppoe IS NOT NULL AND TRIM(id_pppoe) != '' AND id_pppoe != '-'");
+    if ($rDb) { while ($row = $rDb->fetch_assoc()) { $used[] = trim($row['id_pppoe']); } }
+
+    // 2. Ambil SEMUA secret PPPoE dari MikroTik (semua service, bandingkan nama utuh)
+    $connMkErr = null;
+    $API = new RouterosAPI();
+    $API->debug = false;
+    $API->ssl = (!empty($conf['mikrotik_ssl']) && ($conf['mikrotik_ssl'] === '1' || $conf['mikrotik_ssl'] === 'true'));
+    if ($API->connect($m_ip, $m_user, $m_pass, $m_port)) {
+        // Ambil semua nama secret (print polos; proplist tidak didukung class ini secara langsung)
+        $API->write('/ppp/secret/print', false);
+        $read = $API->read();
+        $API->disconnect();
+        if (is_array($read) && !isset($read['error'])) {
+            foreach ($read as $s) {
+                if (isset($s['name']) && trim($s['name']) !== '') $used[] = trim($s['name']);
+            }
+        }
+    } else {
+        $connMkErr = "Gagal konek MikroTik API ke $m_ip:$m_port. " . ($API->lastError ?: '');
+    }
+
+    // 3. Hitung ID numerik terbesar dari seluruh username (bagian sebelum @)
+    $maxNum = 0;
+    foreach ($used as $u) {
+        $core = explode('@', $u)[0];
+        if (ctype_digit($core)) {
+            $n = (int)$core;
+            if ($n > $maxNum) $maxNum = $n;
+        }
+    }
+
+    // 4. Cari slot berikutnya yang belum dipakai (cek penuh, case-insensitive)
+    $usedLower = array_map('strtolower', $used);
+    $userId = '';
+    for ($i = 1; $i <= 200000; $i++) {
+        $candKey = $maxNum + $i;
+        $full = (string)$candKey . $domain;
+        if (!in_array(strtolower($full), $usedLower, true)) {
+            $userId = (string)$candKey;
+            break;
+        }
+    }
+    if ($userId === '') {
+        echo json_encode(['status' => 'error', 'message' => 'Gagal generate: tidak ada slot ID tersisa.', 'mikrotik_error' => $connMkErr]);
+        exit;
+    }
+
+    echo json_encode([
+        'status'   => 'success',
+        'id'       => $userId,
+        'username' => $userId . $domain,
+        'checked_mikrotik' => ($connMkErr === null),
+        'mikrotik_error'    => $connMkErr
+    ]);
+    exit;
+}
 elseif ($action == 'mikrotik_add_secret') {
     require_once 'routeros_api.class.php';
     
@@ -1038,25 +1148,45 @@ elseif ($action == 'mikrotik_add_secret') {
     $API->ssl = (!empty($conf['mikrotik_ssl']) && ($conf['mikrotik_ssl'] === '1' || $conf['mikrotik_ssl'] === 'true'));
 
     if ($API->connect($m_ip, $m_user, $m_pass, $m_port)) {
-        $API->write('/ppp/secret/print', false);
-        $API->write("?=name=" . $username);
+        // Cek duplikat di MikroTik (semua secret, bukan hanya pppoe service)
+        // FORMAT BENAR: query filter digabung dalam SATU write
+        $API->write('/ppp/secret/print', '?name=' . $username);
         $read = $API->read();
         
-        if (!empty($read)) {
+        if (!empty($read) && !isset($read['error'])) {
             echo json_encode(['status' => 'error', 'message' => 'Gagal: User PPPoE "' . $username . '" sudah ada di MikroTik!']);
             $API->disconnect();
             exit;
         }
 
-        $API->write('/ppp/secret/add', false);
-        $API->write('=name=' . $username, false);
-        $API->write('=password=' . $password, false);
-        $API->write('=service=pppoe', false);
-        $API->write('=profile=' . $profile, false);
-        $API->write('=comment=' . $comment);
-        $API->read();
+        // Cek duplikat di database pelanggan
+        $cekDb = $conn->prepare("SELECT id FROM pelanggan WHERE id_pppoe = ? LIMIT 1");
+        $cekDb->bind_param('s', $username); $cekDb->execute();
+        if ($cekDb->get_result()->num_rows > 0) {
+            echo json_encode(['status' => 'error', 'message' => 'Gagal: Username PPPoE "' . $username . '" sudah dipakai pelanggan lain di database!']);
+            $API->disconnect();
+            exit;
+        }
 
+        // TAMBAH SECRET - SATU write dengan semua parameter (format API benar)
+        $API->write('/ppp/secret/add', array(
+            '=name'     => $username,
+            '=password' => $password,
+            '=service'  => 'pppoe',
+            '=profile'  => $profile,
+            '=comment'  => $comment
+        ));
+        $addResp = $API->read();
         $API->disconnect();
+
+        // Cek trap/fatal error dari router (misal profile tidak ada, dsb)
+        if (is_array($addResp) && isset($addResp['error'])) {
+            $msg = 'Gagal tambah secret di MikroTik';
+            if (isset($addResp[0]['message'])) $msg .= ': ' . $addResp[0]['message'];
+            echo json_encode(['status' => 'error', 'message' => $msg]);
+            exit;
+        }
+
         echo json_encode(['status' => 'success', 'message' => 'Sukses! Secret PPPoE berhasil ditambahkan ke MikroTik.']);
     } else {
         echo json_encode(['status' => 'error', 'message' => "Gagal konek MikroTik API ke IP $m_ip:$m_port. " . ($API->lastError ?: 'Periksa koneksi/kredensial.')]);

@@ -11,3 +11,9 @@ test.php
 *.log
 .DS_Store
 Thumbs.db
+
+# Repo/internal lain (bukan bagian project ini)
+.kilo/
+zg-gripper/
+zorotamiya-gripper-yellow-final/
+logs/
