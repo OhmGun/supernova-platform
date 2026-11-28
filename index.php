@@ -256,6 +256,41 @@ $default_tab = 'dashboard';
     .topbar .traffic { display: none; }
   }
   @media (max-width: 640px) { .container { padding: 14px 12px 40px; } }
+
+  /* ===== RESPONSIF TABLET & HANDPHONE ===== */
+  .mon-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; align-items: start; }
+  @media (max-width: 1024px) {
+    .container { padding: 16px 14px 40px; }
+    .card { padding: 16px; }
+  }
+  @media (max-width: 900px) {
+    .table-scroll table { min-width: 720px; }         /* tabel scroll horizontal, tidak penyok */
+    .mon-grid { grid-template-columns: 1fr; }
+    .grid-main { grid-template-columns: 1fr; }
+    .topbar-title { font-size: 14px; }
+    .topbar-actions .chip { display: none; }
+  }
+  @media (max-width: 768px) {
+    .stats-grid { grid-template-columns: repeat(2, 1fr); gap: 12px; }
+    .topbar { padding: 10px 12px; gap: 8px; flex-wrap: wrap; }
+    .modal-card, .modal-card-lg { max-width: 94vw; max-height: 90vh; overflow-y: auto; }
+    .card-header { flex-wrap: wrap; gap: 8px; }
+    .btn { white-space: nowrap; }
+    #dash-map, #mon-map, #pick-map, #detail-map { height: 300px !important; }
+    .term { max-height: 60vh; }
+  }
+  @media (max-width: 480px) {
+    .stats-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+    .stat-val { font-size: 20px; }
+    .card { padding: 13px; }
+    .form-grid { grid-template-columns: 1fr; }
+    .col-span-2 { grid-column: span 1; }
+    .search-wrap input { font-size: 13px; }
+    .quick-grid { grid-template-columns: 1fr 1fr; }
+    .avatar { width: 30px; height: 30px; font-size: 11px; }
+    .sidebar { width: 230px; }
+    .modal-card { padding: 18px; }
+  }
 </style>
 <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" media="print" onload="this.media='all'">
@@ -596,6 +631,14 @@ $default_tab = 'dashboard';
       <div class="card" style="margin:0"><div style="font-size:11px; color:var(--muted)">Sesi Aktif MikroTik</div><div id="mon-mk" class="stat-val" style="color:#38bdf8">0</div></div>
     </div>
 
+    <div class="card" style="margin-bottom:16px;">
+      <div class="card-header">
+        <span class="card-title"><i class="fa-solid fa-map-location-dot" style="color:#64D2FF;"></i> Peta Status Pelanggan</span>
+        <span class="chip" id="mon-map-count">0 titik</span>
+      </div>
+      <div id="mon-map" style="height:420px; border-radius:12px; overflow:hidden; border:1px solid rgba(255,255,255,.1); background:#0a0a0f;"></div>
+    </div>
+
     <div class="card" style="display:flex; flex-wrap:wrap; gap:10px; justify-content:space-between; align-items:center;">
       <div style="font-size:12px; color:var(--muted);">
         Status diambil langsung dari sesi aktif PPPoE MikroTik (dicocokkan via ID PPPoE). Auto-refresh tiap 30 detik.
@@ -611,7 +654,7 @@ $default_tab = 'dashboard';
 
     <div id="mon-error" class="alert alert-warn hidden" style="margin-bottom:12px;"></div>
 
-    <div style="display:grid; grid-template-columns:1fr 1fr; gap:14px; align-items:start;">
+    <div class="mon-grid">
       <div class="card" style="padding:0; overflow:hidden; min-width:0;">
         <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 14px; border-bottom:1px solid var(--border);">
           <span style="font-weight:700; color:#34d399; font-size:13px;"><i class="fa-solid fa-wifi"></i> Online</span>
@@ -2310,6 +2353,26 @@ async function loadDashboard() {
 // ================= PETA =================
 let dashMap = null, dashMarkers = [], dashPolys = [];
 
+// Popup terbuka saat hover & tetap terbuka selama kursor di marker/popup
+function bindHoverPopup(marker) {
+  let overMarker = false;
+  const closeIfGone = () => {
+    setTimeout(() => {
+      if (overMarker) return;
+      const p = marker.getPopup && marker.getPopup();
+      const el = p && p.getElement();
+      // tutup hanya bila kursor sudah tidak di marker maupun popup
+      if (el && el.matches(':hover')) return;
+      marker.closePopup();
+    }, 250);
+  };
+  marker.on('mouseover', () => { overMarker = true; marker.openPopup(); });
+  marker.on('mouseout', () => { overMarker = false; closeIfGone(); });
+  // Lacak popup yang sedang terbuka agar bisa dipulihkan saat refresh peta
+  marker.on('popupopen', () => { if (marker._map) marker._map._openKey = marker._custKey || null; });
+  marker.on('popupclose', () => { if (marker._map && marker._map._openKey === (marker._custKey || null)) marker._map._openKey = null; });
+}
+
 async function loadDashboardMap() {
   const el = document.getElementById('dash-map');
   if (!el) return;
@@ -2336,6 +2399,8 @@ async function loadDashboardMap() {
       dashMap = L.map('dash-map', { zoomSnap: 0.5 }).setView([-8.348, 116.039723], 14.5);
       addBaseLayers(dashMap, 'Satelit');
     }
+    // Simpan popup yang sedang terbuka agar dipulihkan setelah refresh
+    const keepKey = dashMap._openKey || null;
     dashMarkers.forEach(m => dashMap.removeLayer(m));
     dashMarkers = [];
     dashPolys.forEach(p => dashMap.removeLayer(p));
@@ -2352,19 +2417,23 @@ async function loadDashboardMap() {
         color = c.status === 'Aktif' ? '#30D158' : c.status === 'Isolir' ? '#FF9F0A' : '#FF453A';
         label = c.status;
       }
+      const blink = (color === '#FF453A') ? 'animation:blinkRed 1s infinite;' : '';
       const icon = L.divIcon({
         className: '',
-        html: `<div style="width:16px;height:16px;border-radius:50%;border:2px solid #fff;background:${color};box-shadow:0 2px 8px rgba(0,0,0,.5);"></div>`,
+        html: `<div style="width:16px;height:16px;border-radius:50%;border:2px solid #fff;background:${color};box-shadow:0 2px 8px rgba(0,0,0,.5);${blink}"></div>`,
         iconSize: [16, 16], iconAnchor: [8, 8]
       });
       const m = L.marker([c.latitude, c.longitude], { icon }).addTo(dashMap);
+      m._custKey = String(c.id_pppoe).trim().toLowerCase();
       m.bindPopup(
         '<b>' + esc(c.client) + '</b><br>' +
         (c.paket_profile || c.paket + ' Mbps') + '<br>' +
         'ID: ' + esc(c.id_pppoe) + '<br>' +
         'Port: ' + esc(c.port) + '<br>' +
-        (label === 'Online' ? '<span style="color:#63e6a5">🟢 Online</span>' : '<span style="color:#ff8d86">🔴 Offline</span>')
+        (label === 'Online' ? '<span style="color:#63e6a5">🟢 Online</span>' : '<span style="color:#ff8d86">🔴 Offline</span>') +
+        '<br><a href="https://maps.google.com/?q=' + c.latitude + ',' + c.longitude + '" target="_blank" rel="noopener" style="color:#64D2FF;">📍 Buka di Google Maps</a>'
       );
+      bindHoverPopup(m);
       dashMarkers.push(m);
       bounds.push([c.latitude, c.longitude]);
       custOnMap.push({ lat: c.latitude, lng: c.longitude, color: color });
@@ -2387,6 +2456,7 @@ async function loadDashboardMap() {
       m.bindPopup(
         '<div style="text-align:center;"><i class="fa-solid ' + (isOlt ? 'fa-server' : 'fa-network-wired') + '" style="font-size:18px;color:' + (isOlt ? '#d9a5f7' : '#64D2FF') + ';"></i><br><b style="color:#fff;">' + esc(d.name) + '</b><br><span style="color:#98989f;">' + (isOlt ? 'OLT' : 'Router MikroTik') + '</span></div>'
       );
+      bindHoverPopup(m);
       dashMarkers.push(m);
     });
 
@@ -2403,7 +2473,110 @@ async function loadDashboardMap() {
       });
     }
 
+    // Pulihkan popup yang terbuka sebelum refresh
+    if (keepKey) {
+      const mk = dashMarkers.find(x => x._custKey === keepKey);
+      if (mk) mk.openPopup();
+    }
+
     setTimeout(() => dashMap.invalidateSize(), 100);
+  } catch(e) {}
+}
+
+// ============ PETA HALAMAN MONITORING ============
+let monMap = null, monMarkers = [], monPolys = [];
+
+async function loadMonitorMap() {
+  const el = document.getElementById('mon-map');
+  if (!el) return;
+  try {
+    const resMap = await fetch('api.php?action=get_map');
+    const j = await resMap.json();
+    const items = (j.data || []).filter(x => x.latitude && x.longitude);
+    const countEl = document.getElementById('mon-map-count');
+    if (countEl) countEl.textContent = items.length + ' titik';
+
+    // Status online dari data monitoring terbaru (fast/deep) bila tersedia
+    let onlineSet = null;
+    if (Array.isArray(window.monData) && window.monData.length) {
+      onlineSet = new Set(window.monData.filter(x => x.online).map(x => String(x.id_pppoe).trim().toLowerCase()));
+    }
+
+    if (!monMap) {
+      monMap = L.map('mon-map', { zoomSnap: 0.5 }).setView([-8.348, 116.039723], 14.5);
+      addBaseLayers(monMap, 'Satelit');
+    }
+    const keepKey = monMap._openKey || null;
+    monMarkers.forEach(m => monMap.removeLayer(m));
+    monMarkers = [];
+    monPolys.forEach(p => monMap.removeLayer(p));
+    monPolys = [];
+
+    const custOnMap = [];
+    items.forEach(c => {
+      let color = '#FF453A';
+      let label = 'Offline';
+      if (onlineSet) {
+        if (onlineSet.has(String(c.id_pppoe).trim().toLowerCase())) { color = '#30D158'; label = 'Online'; }
+      } else {
+        color = c.status === 'Aktif' ? '#30D158' : c.status === 'Isolir' ? '#FF9F0A' : '#FF453A';
+        label = c.status;
+      }
+      const blink = (color === '#FF453A') ? 'animation:blinkRed 1s infinite;' : '';
+      const icon = L.divIcon({
+        className: '',
+        html: `<div style="width:16px;height:16px;border-radius:50%;border:2px solid #fff;background:${color};box-shadow:0 2px 8px rgba(0,0,0,.5);${blink}"></div>`,
+        iconSize: [16, 16], iconAnchor: [8, 8]
+      });
+      const m = L.marker([c.latitude, c.longitude], { icon }).addTo(monMap);
+      m._custKey = String(c.id_pppoe).trim().toLowerCase();
+      m.bindPopup(
+        '<b>' + esc(c.client) + '</b><br>' +
+        (c.paket_profile || c.paket + ' Mbps') + '<br>' +
+        'ID: ' + esc(c.id_pppoe) + '<br>' +
+        'Port: ' + esc(c.port) + '<br>' +
+        (label === 'Online' ? '<span style="color:#63e6a5">🟢 Online</span>' : '<span style="color:#ff8d86">🔴 Offline</span>') +
+        '<br><a href="https://maps.google.com/?q=' + c.latitude + ',' + c.longitude + '" target="_blank" rel="noopener" style="color:#64D2FF;">📍 Buka di Google Maps</a>'
+      );
+      bindHoverPopup(m);
+      monMarkers.push(m);
+      custOnMap.push({ lat: c.latitude, lng: c.longitude, color: color });
+    });
+
+    let mkPos = null;
+    (j.devices || []).forEach(d => {
+      if (!d.latitude || !d.longitude) return;
+      if (d.type === 'mikrotik') mkPos = [d.latitude, d.longitude];
+      const isOlt = d.type === 'olt';
+      const icon = L.divIcon({
+        className: '',
+        html: `<div style="width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;border:2px solid #fff;background:${isOlt ? 'linear-gradient(180deg,#BF5AF2,#7f2fd0)' : 'linear-gradient(180deg,#0A84FF,#005fc7)'};box-shadow:0 3px 12px rgba(0,0,0,.6);color:#fff;font-size:14px;">${isOlt ? '<i class="fa-solid fa-server"></i>' : '<i class="fa-solid fa-network-wired"></i>'}</div>`,
+        iconSize: [30, 30], iconAnchor: [15, 15]
+      });
+      const m = L.marker([d.latitude, d.longitude], { icon }).addTo(monMap);
+      m.bindPopup(
+        '<div style="text-align:center;"><i class="fa-solid ' + (isOlt ? 'fa-server' : 'fa-network-wired') + '" style="font-size:18px;color:' + (isOlt ? '#d9a5f7' : '#64D2FF') + ';"></i><br><b style="color:#fff;">' + esc(d.name) + '</b><br><span style="color:#98989f;">' + (isOlt ? 'OLT' : 'Router MikroTik') + '</span></div>'
+      );
+      bindHoverPopup(m);
+      monMarkers.push(m);
+    });
+
+    if (mkPos) {
+      custOnMap.forEach(cp => {
+        const poly = L.polyline([[cp.lat, cp.lng], mkPos], {
+          color: cp.color, weight: 2, opacity: 0.55, dashArray: '6 6'
+        }).addTo(monMap);
+        monPolys.push(poly);
+      });
+    }
+
+    // Pulihkan popup yang terbuka sebelum refresh
+    if (keepKey) {
+      const mk = monMarkers.find(x => x._custKey === keepKey);
+      if (mk) mk.openPopup();
+    }
+
+    setTimeout(() => monMap.invalidateSize(), 100);
   } catch(e) {}
 }
 
@@ -2534,6 +2707,7 @@ async function loadMonitoring() {
 
     window.monData = list;
     filterMonitoring();
+    loadMonitorMap();
 
     // Deep check (verifikasi WAN IP di OLT) di latar belakang — maksimal sekali per ~90 detik,
     // agar auto-refresh 4 detik tetap ringan.
@@ -2550,6 +2724,7 @@ async function loadMonitoring() {
             document.getElementById('mon-mk').textContent = dj.online_total || 0;
             window.monData = dlist;
             filterMonitoring();
+            loadMonitorMap();
             if (Array.isArray(window.dashMon)) window.dashMon = dlist;
             renderDashLists();
           }
