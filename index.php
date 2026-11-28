@@ -89,6 +89,8 @@ $default_tab = 'dashboard';
     font-family: Arial, sans-serif; padding: 0;
   }
   .search-clear:hover { background: rgba(255,69,58,.8); color: #fff; }
+  .blink-red { animation: blinkRed 1s infinite; display:inline-block; }
+  @keyframes blinkRed { 0%, 100% { opacity: 1; } 50% { opacity: .2; } }
   .btn {
     background: rgba(10,132,255,.9); color: #fff; border: none;
     padding: 9px 16px; border-radius: 10px; font-size: 12px; font-weight: 600; cursor: pointer;
@@ -267,12 +269,8 @@ $default_tab = 'dashboard';
 
   <!-- SIDEBAR -->
   <aside class="sidebar" id="sidebar">
-    <div class="sidebar-head">
-      <div class="logo"><svg viewBox="0 0 64 64" width="24" height="24" aria-hidden="true"><defs><linearGradient id="snLogo" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#64D2FF"/><stop offset=".55" stop-color="#0A84FF"/><stop offset="1" stop-color="#BF5AF2"/></linearGradient></defs><circle cx="32" cy="32" r="24" fill="none" stroke="url(#snLogo)" stroke-width="1.6" opacity=".55"/><g stroke="url(#snLogo)" stroke-width="2.4" stroke-linecap="round"><line x1="32" y1="8" x2="32" y2="20"/><line x1="32" y1="44" x2="32" y2="56"/><line x1="8" y1="32" x2="20" y2="32"/><line x1="44" y1="32" x2="56" y2="32"/></g><g fill="#64D2FF"><circle cx="56" cy="32" r="3.2"/><circle cx="32" cy="8" r="3.2"/><circle cx="8" cy="32" r="3.2"/><circle cx="32" cy="56" r="3.2"/></g><g fill="#c9c9d6"><circle cx="46" cy="18" r="2.6"/><circle cx="18" cy="18" r="2.6"/><circle cx="18" cy="46" r="2.6"/><circle cx="46" cy="46" r="2.6"/></g><circle cx="32" cy="32" r="11" fill="url(#snLogo)"/><circle cx="28.5" cy="28.5" r="4" fill="#fff" opacity=".92"/></svg></div>
-      <div>
-        <div class="sidebar-title">SUPERNOVA</div>
-        <div class="sidebar-sub">ZTE C320 · OLT</div>
-      </div>
+    <div class="sidebar-head" style="justify-content:center; padding:8px 0 14px; border-bottom:1px solid rgba(255,255,255,.07);">
+      <img src="img/logo.png" alt="Supernova" style="width:150px; height:60px; object-fit:contain;">
     </div>
     <div class="sidebar-section">Menu</div>
     <nav class="sidebar-nav">
@@ -351,7 +349,7 @@ $default_tab = 'dashboard';
         <span class="card-title"><i class="fa-solid fa-map-location-dot" style="color:#64D2FF;"></i> Peta Pelanggan</span>
         <span class="chip" id="dash-map-count">0 titik</span>
       </div>
-      <div id="dash-map" style="height:400px; border-radius:12px; overflow:hidden; border:1px solid rgba(255,255,255,.1); background:#0a0a0f;"></div>
+      <div id="dash-map" style="height:460px; border-radius:12px; overflow:hidden; border:1px solid rgba(255,255,255,.1); background:#0a0a0f;"></div>
       <p class="hint" style="margin:8px 0 0;"><i class="fa-solid fa-circle-info"></i> Menampilkan pelanggan yang sudah diisi koordinat latitude/longitude (tombol <b>Detail</b> di menu Pelanggan untuk menunjuk lokasi).</p>
     </div>
 
@@ -459,6 +457,12 @@ $default_tab = 'dashboard';
       <div class="card">
         <div class="card-header"><span class="card-title" style="color:#64D2FF">5. CONFIG LAYANAN PPPoE</span><button class="btn btn-sm admin-only" onclick="copyText('out-bb-service')">Copy Script</button></div>
         <pre id="out-bb-service" style="color:#d9a5f7">Klik GENERATE di kiri...</pre>
+        <div style="margin-top:10px;">
+          <button class="btn btn-generate admin-only" style="background:linear-gradient(180deg,#FF375F,#c81e4e); box-shadow:0 4px 14px rgba(255,55,95,.35), inset 0 1px 0 rgba(255,255,255,.2);" onclick="deployBroadband()">
+            <i class="fa-solid fa-rocket"></i> DEPLOY 3-4-5 KE OLT (1 Klik)
+          </button>
+          <p class="hint" style="margin:8px 0 0;"><i class="fa-solid fa-circle-info"></i> Menjalankan langkah 3 (hapus ONU) + 4 (registrasi SN) + 5 (config PPPoE) sekaligus ke OLT.</p>
+        </div>
       </div>
     </div>
   </div>
@@ -518,6 +522,7 @@ $default_tab = 'dashboard';
       <div class="card" style="margin:0"><div style="font-size:11px; color:var(--muted)">Total Pelanggan</div><div id="stat-total" class="stat-val">0</div></div>
       <div class="card" style="margin:0"><div style="font-size:11px; color:var(--muted)">Port OLT Aktif</div><div id="stat-aktif" class="stat-val" style="color:#34d399">0</div></div>
       <div class="card" style="margin:0"><div style="font-size:11px; color:var(--muted)">Status CABUT / Belum Ada</div><div id="stat-cabut" class="stat-val" style="color:#fbbf24">0</div></div>
+      <div class="card" style="margin:0; border-color:rgba(255,69,58,.4);"><div style="font-size:11px; color:var(--muted)">Data Kurang Lengkap</div><div id="stat-incomplete" class="stat-val" style="color:#ff8d86">0</div></div>
       <div class="card" style="margin:0"><div style="font-size:11px; color:var(--muted)">Rata-Rata Paket</div><div id="stat-avg" class="stat-val" style="color:#64D2FF">0 Mbps</div></div>
     </div>
 
@@ -650,8 +655,7 @@ $default_tab = 'dashboard';
 
   <!-- TAB 4: KELOLA ADMIN -->
   <?php if ($_SESSION['role'] === 'admin'): ?>
-  <div id="view-admin" class="grid-main hidden">
-    <div>
+  <div id="view-admin" class="hidden">
       <!-- Header + ringkasan -->
       <div class="card" style="padding:16px 18px; margin-bottom:14px; background:linear-gradient(135deg, rgba(34,45,66,.7), rgba(15,23,42,.85));">
         <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
@@ -671,21 +675,7 @@ $default_tab = 'dashboard';
         </div>
       </div>
 
-      <!-- Daftar Akun (paling atas) -->
-      <div class="card" style="padding:0; overflow:hidden; margin-bottom:14px;">
-        <div style="display:flex; justify-content:space-between; align-items:center; padding:12px 14px; border-bottom:1px solid var(--border);">
-          <span class="card-title" style="margin:0; color:#63e6a5;"><i class="fa-solid fa-users"></i> Daftar Akun</span>
-          <span class="chip" id="users-count-chip">0</span>
-        </div>
-        <div style="max-height:340px; overflow-y:auto;">
-          <table>
-            <thead><tr><th>Username</th><th>Role Akses</th><th style="text-align:right">Aksi</th></tr></thead>
-            <tbody id="users-tbody"></tbody>
-          </table>
-        </div>
-      </div>
-
-      <!-- Koneksi Perangkat -->
+      <!-- Koneksi Perangkat (selebar halaman) -->
       <div class="sec-label"><i class="fa-solid fa-plug"></i> Koneksi Perangkat</div>
       <div class="two-col" style="margin-bottom:16px;">
         <div class="card" style="border-left: 4px solid #06b6d4; margin-bottom:0;">
@@ -695,6 +685,8 @@ $default_tab = 'dashboard';
             <div><label>Port</label><input type="text" id="conf-olt-port" placeholder="23"></div>
             <div><label>Username OLT</label><input type="text" id="conf-olt-user" placeholder="admin"></div>
             <div><label>Password OLT</label><input type="password" id="conf-olt-pass" placeholder="***"></div>
+            <div><label>Latitude</label><input type="text" id="conf-olt-lat" placeholder="Contoh: -8.341083°S"></div>
+            <div><label>Longitude</label><input type="text" id="conf-olt-lng" placeholder="Contoh: 116.038155°E"></div>
             <div class="col-span-2"><button class="btn btn-outline-primary" style="width:100%; color:#06b6d4; border-color:#06b6d4;" onclick="saveOltSettings()"><i class="fa-solid fa-floppy-disk"></i> Simpan Config OLT</button></div>
           </div>
         </div>
@@ -706,6 +698,8 @@ $default_tab = 'dashboard';
             <div><label>Port API (Default: 8728)</label><input type="text" id="conf-mk-port" placeholder="8728"></div>
             <div><label>Username MikroTik</label><input type="text" id="conf-mk-user" placeholder="admin"></div>
             <div><label>Password MikroTik</label><input type="password" id="conf-mk-pass" placeholder="***"></div>
+            <div><label>Latitude</label><input type="text" id="conf-mk-lat" placeholder="Contoh: -8.341083°S"></div>
+            <div><label>Longitude</label><input type="text" id="conf-mk-lng" placeholder="Contoh: 116.038155°E"></div>
             <div class="col-span-2">
               <label style="display:flex; align-items:center; gap:8px; margin:0; cursor:pointer;">
                 <input type="checkbox" id="conf-mk-ssl" style="width:auto; cursor:pointer;">
@@ -717,52 +711,66 @@ $default_tab = 'dashboard';
         </div>
       </div>
 
-      <!-- Notifikasi Telegram -->
-      <div class="card" style="border-left: 4px solid #38bdf8; margin-bottom:16px;">
-        <div class="card-header">
-          <span class="card-title" style="color:#38bdf8;"><i class="fa-solid fa-paper-plane"></i> Notifikasi Telegram</span>
-          <span class="chip" style="color:#34d399; border-color:rgba(16,185,129,.35); background:rgba(16,185,129,.1);"><i class="fa-solid fa-circle" style="font-size:8px;"></i> Aktif</span>
-        </div>
-        <div class="form-grid">
-          <div class="col-span-2"><label>Bot Token</label><input type="password" id="conf-tg-token" placeholder="123456:ABC-xyz..." autocomplete="off"></div>
-          <div class="col-span-2"><label>Chat ID</label><input type="text" id="conf-tg-chat" placeholder="-1001234567890" autocomplete="off"></div>
-          <div class="col-span-2"><p class="hint" style="margin:0;"><i class="fa-solid fa-circle-info"></i> Mengirim notifikasi otomatis ke grup Telegram: pelanggan baru/diubah/dihapus, ubah status, restart ONU, perubahan akun, dan import data. Klik simpan untuk mengirim pesan uji.</p></div>
-          <div class="col-span-2"><button class="btn btn-outline-primary" style="width:100%; color:#38bdf8; border-color:#38bdf8;" onclick="saveTelegramSettings()"><i class="fa-solid fa-paper-plane"></i> Simpan & Kirim Uji</button></div>
-        </div>
-      </div>
-
-      <!-- Operasional Data -->
-      <div class="card" style="border-left: 4px solid #BF5AF2; margin-bottom:16px;">
-        <div class="card-header"><span class="card-title" style="color:#BF5AF2;"><i class="fa-solid fa-database"></i> Operasional Data</span></div>
-        <div style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:12px;">
-          <button class="btn btn-sm btn-emerald" onclick="window.open('api.php?action=backup_db','_blank')"><i class="fa-solid fa-download"></i> Backup Database</button>
-          <button class="btn btn-sm btn-rose" onclick="clearAudit()"><i class="fa-solid fa-trash"></i> Bersihkan Log</button>
-        </div>
-        <label>Import Pelanggan <span class="hint">(format per baris: nama;paket;sn;idpppoe;port;lat;lng — lat/lng opsional)</span></label>
-        <textarea id="import-text" rows="3" style="font-family:monospace; font-size:12px; margin-top:4px;" placeholder="Contoh:&#10;MAWAR SEJATI;50;ZTEGD6D940BB;121251720200@supernovanet;1/2/7:18;-8.6499;115.2201"></textarea>
-        <button class="btn btn-sm btn-amber" style="width:100%; color:#000; margin-top:8px;" onclick="importCustomers()"><i class="fa-solid fa-file-import"></i> Import Data</button>
-      </div>
-
-      <!-- Tambah User -->
-      <div class="card" style="border-left: 4px solid #30D158;">
-        <div class="card-header"><span class="card-title" style="color:#30D158;"><i class="fa-solid fa-user-plus"></i> Tambah User Aplikasi</span></div>
-        <div class="form-grid">
-          <div class="col-span-2"><label>Username</label><input type="text" id="admin-username" placeholder="Username baru..." autocomplete="off"></div>
-          <div class="col-span-2"><label>Password</label><input type="password" id="admin-password" placeholder="Minimal 6 karakter..." autocomplete="off"></div>
-          <div class="col-span-2">
-            <label>Role Akses</label>
-            <select id="admin-role">
-              <option value="admin">Admin (Full Akses)</option>
-              <option value="readonly" selected>Read-Only (Hanya Lihat)</option>
-            </select>
+      <!-- Daftar Akun | Tambah User -->
+      <div class="two-col" style="margin-bottom:16px; align-items:start;">
+        <div class="card" style="padding:0; overflow:hidden; margin-bottom:0;">
+          <div style="display:flex; justify-content:space-between; align-items:center; padding:12px 14px; border-bottom:1px solid var(--border);">
+            <span class="card-title" style="margin:0; color:#63e6a5;"><i class="fa-solid fa-users"></i> Daftar Akun</span>
+            <span class="chip" id="users-count-chip">0</span>
           </div>
-          <div class="col-span-2"><button class="btn btn-emerald" style="width:100%; padding:10px;" onclick="saveUserDB()"><i class="fa-solid fa-user-plus"></i> Tambah Akun</button></div>
+          <div style="max-height:340px; overflow-y:auto;">
+            <table>
+              <thead><tr><th>Username</th><th>Role Akses</th><th style="text-align:right">Aksi</th></tr></thead>
+              <tbody id="users-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="card" style="border-left: 4px solid #30D158; margin-bottom:0;">
+          <div class="card-header"><span class="card-title" style="color:#30D158;"><i class="fa-solid fa-user-plus"></i> Tambah User Aplikasi</span></div>
+          <div class="form-grid">
+            <div class="col-span-2"><label>Username</label><input type="text" id="admin-username" placeholder="Username baru..." autocomplete="off"></div>
+            <div class="col-span-2"><label>Password</label><input type="password" id="admin-password" placeholder="Minimal 6 karakter..." autocomplete="off"></div>
+            <div class="col-span-2">
+              <label>Role Akses</label>
+              <select id="admin-role">
+                <option value="admin">Admin (Full Akses)</option>
+                <option value="readonly" selected>Read-Only (Hanya Lihat)</option>
+              </select>
+            </div>
+            <div class="col-span-2"><button class="btn btn-emerald" style="width:100%; padding:10px;" onclick="saveUserDB()"><i class="fa-solid fa-user-plus"></i> Tambah Akun</button></div>
+          </div>
         </div>
       </div>
-    </div>
-    
-    <div>
-      <!-- Audit Log -->
+
+      <!-- Notifikasi Telegram | Operasional Data -->
+      <div class="two-col" style="margin-bottom:16px; align-items:start;">
+        <div class="card" style="border-left: 4px solid #38bdf8; margin-bottom:0;">
+          <div class="card-header">
+            <span class="card-title" style="color:#38bdf8;"><i class="fa-solid fa-paper-plane"></i> Notifikasi Telegram</span>
+            <span class="chip" style="color:#34d399; border-color:rgba(16,185,129,.35); background:rgba(16,185,129,.1);"><i class="fa-solid fa-circle" style="font-size:8px;"></i> Aktif</span>
+          </div>
+          <div class="form-grid">
+            <div class="col-span-2"><label>Bot Token</label><input type="password" id="conf-tg-token" placeholder="123456:ABC-xyz..." autocomplete="off"></div>
+            <div class="col-span-2"><label>Chat ID</label><input type="text" id="conf-tg-chat" placeholder="-1001234567890" autocomplete="off"></div>
+            <div class="col-span-2"><p class="hint" style="margin:0;"><i class="fa-solid fa-circle-info"></i> Mengirim notifikasi otomatis ke grup Telegram: pelanggan baru/diubah/dihapus, ubah status, restart ONU, perubahan akun, dan import data. Klik simpan untuk mengirim pesan uji.</p></div>
+            <div class="col-span-2"><button class="btn btn-outline-primary" style="width:100%; color:#38bdf8; border-color:#38bdf8;" onclick="saveTelegramSettings()"><i class="fa-solid fa-paper-plane"></i> Simpan & Kirim Uji</button></div>
+          </div>
+        </div>
+
+        <div class="card" style="border-left: 4px solid #BF5AF2; margin-bottom:0;">
+          <div class="card-header"><span class="card-title" style="color:#BF5AF2;"><i class="fa-solid fa-database"></i> Operasional Data</span></div>
+          <div style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:12px;">
+            <button class="btn btn-sm btn-emerald" onclick="window.open('api.php?action=backup_db','_blank')"><i class="fa-solid fa-download"></i> Backup Database</button>
+            <button class="btn btn-sm btn-rose" onclick="clearAudit()"><i class="fa-solid fa-trash"></i> Bersihkan Log</button>
+          </div>
+          <label>Import Pelanggan <span class="hint">(format per baris: nama;paket;sn;idpppoe;port;lat;lng — lat/lng opsional)</span></label>
+          <textarea id="import-text" rows="3" style="font-family:monospace; font-size:12px; margin-top:4px;" placeholder="Contoh:&#10;MAWAR SEJATI;50;ZTEGD6D940BB;121251720200@supernovanet;1/2/7:18;-8.6499;115.2201"></textarea>
+          <button class="btn btn-sm btn-amber" style="width:100%; color:#000; margin-top:8px;" onclick="importCustomers()"><i class="fa-solid fa-file-import"></i> Import Data</button>
+        </div>
+      </div>
+
+      <!-- Audit Log (paling bawah) -->
       <div class="card" style="padding:0; overflow:hidden;">
         <div style="display:flex; justify-content:space-between; align-items:center; padding:12px 14px; border-bottom:1px solid var(--border);">
           <span class="card-title" style="margin:0; color:#63e6a5;"><i class="fa-solid fa-book"></i> Audit Log</span>
@@ -775,7 +783,6 @@ $default_tab = 'dashboard';
           </table>
         </div>
       </div>
-    </div>
   </div>
   <?php endif; ?>
 
@@ -1128,7 +1135,8 @@ function generateBroadbandScript() {
 
   document.getElementById('out-bb-state').textContent = `show gpon onu state gpon-olt_${iface}`;
   document.getElementById('out-bb-delete').textContent = `configure t\ninterface gpon-olt_${iface}\nno onu ${onu}\nexit`;
-  document.getElementById('out-bb-regis').textContent = `config t\ninterface gpon-olt_${iface}\nonu ${onu} type ALL-ONT sn ${sn}\nexit`;
+  // Step 4: tanpa 'config t' karena setelah step 3 shell sudah dalam mode config
+  document.getElementById('out-bb-regis').textContent = `interface gpon-olt_${iface}\nonu ${onu} type ALL-ONT sn ${sn}\nexit`;
   
   document.getElementById('out-bb-service').textContent = 
 `interface gpon-onu_${iface}:${onu}
@@ -1160,6 +1168,64 @@ write`;
   document.getElementById('mk-comment').value = nama;
   
   showToast('Script Broadband di-generate & disinkronkan ke form MikroTik!');
+}
+
+// Deploy gabungan langkah 3+4+5 ke OLT dalam 1 klik
+async function deployBroadband() {
+  const iface = document.getElementById('bb-iface').value.trim();
+  const onu = document.getElementById('bb-onu').value.trim();
+  const sn = document.getElementById('bb-sn').value.trim().toUpperCase();
+  const userid = document.getElementById('bb-userid').value.trim();
+
+  if (!iface || !onu || !sn || !userid) {
+    alert('Lengkapi dulu: Interface GPON-OLT, ONU ID, SN ONT, dan User ID PPPoE (tekan GENERATE SCRIPT OLT).');
+    return;
+  }
+  if (!/^\d+$/.test(onu)) { alert('ONU ID harus berupa angka.'); return; }
+  if (!confirm('Deploy ke OLT sekarang?\n\nInterface : ' + iface + '\nONU ID    : ' + onu + '\nSN ONT    : ' + sn + '\n\nLangkah 3 (hapus ONU) + 4 (registrasi SN) + 5 (config PPPoE) akan dijalankan sekaligus.')) {
+    return;
+  }
+
+  const btn = event && event.currentTarget ? event.currentTarget : null;
+  if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Deploy...'; }
+
+  setTerminal('Deploy Broadband ke OLT — ' + iface + ':' + onu, true);
+  const out = document.getElementById('olt-terminal-output');
+  if (out) out.textContent = '> mengirim langkah 3-4-5 ke OLT...';
+
+  const data = {
+    iface: iface, onu: onu, sn: sn,
+    type: document.getElementById('bb-type').value.trim() || 'ALL-ONT',
+    nama: document.getElementById('bb-nama').value.trim(),
+    userid: userid,
+    domain: document.getElementById('bb-domain').value || '',
+    pass: document.getElementById('bb-pass').value.trim() || 'supernova',
+    vlan: document.getElementById('bb-vlan').value.trim() || '210',
+    profDown: document.getElementById('bb-prof-down').value.trim() || 'pppoe',
+    vlanProf: document.getElementById('bb-vlan-prof').value.trim() || 'PPPOE'
+  };
+
+  try {
+    const res = await fetch('api.php?action=olt_deploy', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    });
+    const json = await res.json();
+    if (out) out.classList.remove('term-loading');
+    const raw = json.status === 'success'
+      ? (json.data || json.message || '(Respons kosong)')
+      : 'Gagal: ' + (json.message || 'respons tidak valid');
+    if (out) out.textContent = raw;
+    if (json.status === 'success') {
+      showToast('Deploy ke OLT selesai!');
+    }
+  } catch (e) {
+    if (out) { out.classList.remove('term-loading'); out.textContent = 'ERROR: ' + e.toString(); }
+    alert('Gagal terhubung ke API deploy.');
+  } finally {
+    if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-rocket"></i> DEPLOY 3-4-5 KE OLT (1 Klik)'; }
+  }
 }
 
 // ================= FUNGSI AUTO-GENERATE ID PPPoE (cek MikroTik + DB) =================
@@ -1255,10 +1321,21 @@ function renderCustomers() {
     });
 
     document.getElementById('customer-tbody').innerHTML = list.map((c, index) => {
-      let validPort = c.port && c.port.includes(':'); 
+      let validPort = c.port && c.port.includes(':');
+      // Data dianggap lengkap bila SN, ID PPPoE, dan Port OLT terisi valid
+      const sn = (c.sn || '').trim();
+      const pppoe = (c.id_pppoe || '').trim();
+      const port = (c.port || '').trim();
+      const dataComplete = sn !== '' && sn !== '-' &&
+                           pppoe !== '' && pppoe !== '-' &&
+                           port !== '' && port !== 'BELUM ADA' && port !== '-' && port.includes(':');
+      const leftAccent = !dataComplete ? 'box-shadow:inset 3px 0 0 #FF453A;' : '';
       return `
       <tr>
-        <td style="font-family:monospace; color:var(--muted)">${esc(String(c.id_pppoe || '').split('@')[0] || '-')}</td>
+        <td style="font-family:monospace; color:var(--muted); ${leftAccent}">
+          ${!dataComplete ? '<span class="badge blink-red" style="color:#ff8d86;border-color:#FF453A;background:rgba(255,69,58,.15); margin-bottom:4px;">⚠ Data Kurang</span><br>' : ''}
+          ${esc(String(c.id_pppoe || '').split('@')[0] || '-')}
+        </td>
         <td style="font-weight:600">${esc(c.client)}</td>
         <td style="font-family:monospace; color:#64D2FF; white-space:nowrap;" title="${esc(c.paket_profile || (c.paket + ' Mbps'))}">${esc(c.paket_profile || (c.paket + ' Mbps'))}</td>
         <td style="font-family:monospace; color:#ffc15e">${esc(c.sn || '-')}</td>
@@ -1297,6 +1374,14 @@ function renderCustomers() {
     const aktif = list.filter(c => c.status === 'Aktif').length;
     document.getElementById('stat-aktif').textContent = aktif;
     document.getElementById('stat-cabut').textContent = list.length - aktif;
+    // Hitung pelanggan dengan data tidak lengkap (SN / ID PPPoE / Port OLT kosong)
+    const incomplete = list.filter(c => {
+      const sn = (c.sn || '').trim(), pp = (c.id_pppoe || '').trim(), port = (c.port || '').trim();
+      return sn === '' || sn === '-' || pp === '' || pp === '-' ||
+             port === '' || port === 'BELUM ADA' || port === '-' || !port.includes(':');
+    }).length;
+    const statInc = document.getElementById('stat-incomplete');
+    if (statInc) { statInc.textContent = incomplete; statInc.style.color = incomplete > 0 ? '#ff8d86' : '#34d399'; }
     const avg = list.reduce((a, c) => a + (Number(c.paket) || 0), 0) / (list.length || 1);
     document.getElementById('stat-avg').textContent = avg.toFixed(1) + ' Mbps';
   } catch(e) {}
@@ -1788,6 +1873,7 @@ async function loadEditPaketOptions(selected) {
 }
 
 function openAddModal() {
+  window._editOldPppoe = '';
   document.getElementById('edit-id').value = '';
   document.getElementById('edit-nama').value = '';
   loadEditPaketOptions(30);
@@ -1810,6 +1896,7 @@ function openAddModal() {
 function openEditModal(id) {
   const c = customers.find(x => x.id == id);
   if(!c) return;
+  window._editOldPppoe = c.id_pppoe || '';
   document.getElementById('edit-id').value = c.id;
   document.getElementById('edit-nama').value = c.client;
   loadEditPaketOptions(c.paket_profile || c.paket);
@@ -1857,7 +1944,7 @@ async function saveEditCustomerDB() {
                 alert('Pelanggan tersimpan di database, tetapi Password PPPoE kosong — PPPoE tidak dibuat di MikroTik.');
             } else {
                 const mkProfile = data.paket_profile || 'default';
-                const mkComment = data.client + (data.port && data.port !== 'BELUM ADA' ? ' | Port ' + data.port : '');
+                const mkComment = data.client + ' | Port ' + (data.port && data.port !== 'BELUM ADA' ? data.port : 'BELUM ADA') + (data.latitude && data.longitude ? ' | Map ' + data.latitude + ',' + data.longitude : '');
                 try {
                     const mkRes = await fetch('api.php?action=mikrotik_add_secret', { method: 'POST', body: JSON.stringify({
                         username: data.id_pppoe,
@@ -1877,9 +1964,13 @@ async function saveEditCustomerDB() {
                 }
             }
         } else if (!isNew && id) {
-            // EDIT: sinkronkan nama + port OLT + paket ke comment/profile secret di MikroTik
-            const mkComment = data.client + (data.port && data.port !== 'BELUM ADA' ? ' | Port ' + data.port : '');
-            const syncBody = { username: data.id_pppoe, comment: mkComment };
+            // EDIT: sinkronkan nama + port OLT + paket + username + koordinat ke secret di MikroTik
+            const mkComment = data.client + ' | Port ' + (data.port && data.port !== 'BELUM ADA' ? data.port : 'BELUM ADA') + (data.latitude && data.longitude ? ' | Map ' + data.latitude + ',' + data.longitude : '');
+            const syncBody = { username: window._editOldPppoe || data.id_pppoe, comment: mkComment };
+            // Bila ID PPPoE diubah: minta MikroTik mengganti nama secret juga
+            if (window._editOldPppoe && window._editOldPppoe !== data.id_pppoe) {
+                syncBody.newname = data.id_pppoe;
+            }
             if (data.paket_profile) syncBody.profile = data.paket_profile;
             try {
                 const syncRes = await fetch('api.php?action=mikrotik_sync_secret', { method: 'POST', body: JSON.stringify(syncBody) });
@@ -1912,6 +2003,8 @@ async function loadOltSettings() {
         document.getElementById('conf-olt-ip').value = s.olt_ip || '';
         document.getElementById('conf-olt-port').value = s.olt_port || '23';
         document.getElementById('conf-olt-user').value = s.olt_user || '';
+        document.getElementById('conf-olt-lat').value = s.olt_latitude || '';
+        document.getElementById('conf-olt-lng').value = s.olt_longitude || '';
     } catch(e) {}
 }
 async function saveOltSettings() {
@@ -1919,7 +2012,9 @@ async function saveOltSettings() {
         olt_ip: document.getElementById('conf-olt-ip').value.trim(),
         olt_port: document.getElementById('conf-olt-port').value.trim() || '23',
         olt_user: document.getElementById('conf-olt-user').value.trim(),
-        olt_pass: document.getElementById('conf-olt-pass').value.trim()
+        olt_pass: document.getElementById('conf-olt-pass').value.trim(),
+        olt_latitude: parseCoord(document.getElementById('conf-olt-lat').value) || '',
+        olt_longitude: parseCoord(document.getElementById('conf-olt-lng').value) || ''
     };
     let res = await fetch('api.php?action=update_settings', { method: 'POST', body: JSON.stringify(data) });
     let json = await res.json();
@@ -1936,6 +2031,8 @@ async function loadMikrotikSettings() {
         document.getElementById('conf-mk-user').value = s.mikrotik_user || '';
         const sslBox = document.getElementById('conf-mk-ssl');
         if (sslBox) sslBox.checked = (s.mikrotik_ssl === '1' || s.mikrotik_ssl === 'true');
+        document.getElementById('conf-mk-lat').value = s.mikrotik_latitude || '';
+        document.getElementById('conf-mk-lng').value = s.mikrotik_longitude || '';
         if (document.getElementById('conf-tg-token')) document.getElementById('conf-tg-token').value = s.telegram_bot_token || '';
         if (document.getElementById('conf-tg-chat')) document.getElementById('conf-tg-chat').value = s.telegram_chat_id || '';
     } catch(e) {}
@@ -1946,7 +2043,9 @@ async function saveMikrotikSettings() {
         mikrotik_port: document.getElementById('conf-mk-port').value.trim() || '8728',
         mikrotik_user: document.getElementById('conf-mk-user').value.trim(),
         mikrotik_pass: document.getElementById('conf-mk-pass').value.trim(),
-        mikrotik_ssl: document.getElementById('conf-mk-ssl') && document.getElementById('conf-mk-ssl').checked ? '1' : '0'
+        mikrotik_ssl: document.getElementById('conf-mk-ssl') && document.getElementById('conf-mk-ssl').checked ? '1' : '0',
+        mikrotik_latitude: parseCoord(document.getElementById('conf-mk-lat').value) || '',
+        mikrotik_longitude: parseCoord(document.getElementById('conf-mk-lng').value) || ''
     };
     try {
         let res = await fetch('api.php?action=update_mk_settings', { method: 'POST', body: JSON.stringify(data) });
@@ -2209,7 +2308,7 @@ async function loadDashboard() {
 }
 
 // ================= PETA =================
-let dashMap = null, dashMarkers = [];
+let dashMap = null, dashMarkers = [], dashPolys = [];
 
 async function loadDashboardMap() {
   const el = document.getElementById('dash-map');
@@ -2233,13 +2332,16 @@ async function loadDashboardMap() {
     }
 
     if (!dashMap) {
-      // Tampilan awal: keseluruhan 1 pulau (Lombok)
-      dashMap = L.map('dash-map').setView([-8.65, 116.15], 15);
+      // Tampilan awal: pulau Gili Trawangan agak ke atas, zoom 14.5
+      dashMap = L.map('dash-map', { zoomSnap: 0.5 }).setView([-8.348, 116.039723], 14.5);
       addBaseLayers(dashMap, 'Satelit');
     }
     dashMarkers.forEach(m => dashMap.removeLayer(m));
     dashMarkers = [];
+    dashPolys.forEach(p => dashMap.removeLayer(p));
+    dashPolys = [];
     const bounds = [];
+    const custOnMap = [];
     items.forEach(c => {
       let color = '#FF453A';        // default offline (merah)
       let label = 'Offline';
@@ -2265,9 +2367,42 @@ async function loadDashboardMap() {
       );
       dashMarkers.push(m);
       bounds.push([c.latitude, c.longitude]);
+      custOnMap.push({ lat: c.latitude, lng: c.longitude, color: color });
     });
-    if (bounds.length) dashMap.fitBounds(bounds, { padding: [50, 50], maxZoom: 15 });
-    else dashMap.setView([-8.65, 116.15], 15);
+    // Tampilan peta tetap pada posisi pulau — tidak auto-fit agar tidak terpotong/bergeser
+    if (!bounds.length) dashMap.setView([-8.348, 116.039723], 14.5);
+
+    // Penanda perangkat (OLT & MikroTik)
+    let mkPos = null;
+    (j.devices || []).forEach(d => {
+      if (!d.latitude || !d.longitude) return;
+      if (d.type === 'mikrotik') mkPos = [d.latitude, d.longitude];
+      const isOlt = d.type === 'olt';
+      const icon = L.divIcon({
+        className: '',
+        html: `<div style="width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;border:2px solid #fff;background:${isOlt ? 'linear-gradient(180deg,#BF5AF2,#7f2fd0)' : 'linear-gradient(180deg,#0A84FF,#005fc7)'};box-shadow:0 3px 12px rgba(0,0,0,.6);color:#fff;font-size:14px;">${isOlt ? '<i class="fa-solid fa-server"></i>' : '<i class="fa-solid fa-network-wired"></i>'}</div>`,
+        iconSize: [30, 30], iconAnchor: [15, 15]
+      });
+      const m = L.marker([d.latitude, d.longitude], { icon }).addTo(dashMap);
+      m.bindPopup(
+        '<div style="text-align:center;"><i class="fa-solid ' + (isOlt ? 'fa-server' : 'fa-network-wired') + '" style="font-size:18px;color:' + (isOlt ? '#d9a5f7' : '#64D2FF') + ';"></i><br><b style="color:#fff;">' + esc(d.name) + '</b><br><span style="color:#98989f;">' + (isOlt ? 'OLT' : 'Router MikroTik') + '</span></div>'
+      );
+      dashMarkers.push(m);
+    });
+
+    // Garis koneksi: tiap pelanggan -> Router MikroTik, warna sesuai status (hijau online / merah offline)
+    if (mkPos) {
+      custOnMap.forEach(cp => {
+        const poly = L.polyline([[cp.lat, cp.lng], mkPos], {
+          color: cp.color,
+          weight: 2,
+          opacity: 0.55,
+          dashArray: '6 6'
+        }).addTo(dashMap);
+        dashPolys.push(poly);
+      });
+    }
+
     setTimeout(() => dashMap.invalidateSize(), 100);
   } catch(e) {}
 }
@@ -2364,6 +2499,8 @@ function monStatusBadge(online) {
     : '<span class="badge" style="color:#ffc15e; border-color:#FF9F0A; background:rgba(245,158,11,0.1);">Offline</span>';
 }
 
+let lastMonDeep = 0;
+
 async function loadMonitoring() {
   const onTb = document.getElementById('monitor-tbody-online');
   const offTb = document.getElementById('monitor-tbody-offline');
@@ -2378,6 +2515,7 @@ async function loadMonitoring() {
     if (offTb) offTb.innerHTML = skRowsOff;
   }
   try {
+    // Cepat: hanya sesi MikroTik (cache 10 dtk) -> respons instan
     let res = await fetch('api.php?action=mikrotik_monitor');
     let json = await res.json();
 
@@ -2396,9 +2534,31 @@ async function loadMonitoring() {
 
     window.monData = list;
     filterMonitoring();
+
+    // Deep check (verifikasi WAN IP di OLT) di latar belakang — maksimal sekali per ~90 detik,
+    // agar auto-refresh 4 detik tetap ringan.
+    if (Date.now() - lastMonDeep > 85000) {
+      lastMonDeep = Date.now();
+      fetch('api.php?action=mikrotik_monitor&deep=1')
+        .then(r => r.json())
+        .then(dj => {
+          if (dj && dj.status === 'success' && Array.isArray(dj.online)) {
+            const dlist = dj.online;
+            document.getElementById('mon-total').textContent = dlist.length;
+            document.getElementById('mon-online').textContent = dlist.filter(x => x.online).length;
+            document.getElementById('mon-offline').textContent = dlist.length - dlist.filter(x => x.online).length;
+            document.getElementById('mon-mk').textContent = dj.online_total || 0;
+            window.monData = dlist;
+            filterMonitoring();
+            if (Array.isArray(window.dashMon)) window.dashMon = dlist;
+            renderDashLists();
+          }
+        })
+        .catch(() => {});
+    }
   } catch (e) {
-    if (onTb) onTb.innerHTML = '<tr><td colspan="6" style="color:#ff8d86">Error memuat data monitoring.</td></tr>';
-    if (offTb) offTb.innerHTML = '<tr><td colspan="5" style="color:#ff8d86">Error memuat data monitoring.</td></tr>';
+    if (onTb) onTb.innerHTML = '<tr><td colspan="4" style="color:#ff8d86">Error memuat data monitoring.</td></tr>';
+    if (offTb) offTb.innerHTML = '<tr><td colspan="3" style="color:#ff8d86">Error memuat data monitoring.</td></tr>';
   }
 }
 

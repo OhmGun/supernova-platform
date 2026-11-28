@@ -183,8 +183,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
   <div class="card">
     <div class="traffic"><i class="t-red"></i><i class="t-yel"></i><i class="t-grn"></i></div>
-    <div class="logo-box"><div class="logo"><svg viewBox="0 0 64 64" width="38" height="38" aria-hidden="true"><defs><linearGradient id="snLogo" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#64D2FF"/><stop offset=".55" stop-color="#0A84FF"/><stop offset="1" stop-color="#BF5AF2"/></linearGradient></defs><circle cx="32" cy="32" r="24" fill="none" stroke="url(#snLogo)" stroke-width="1.6" opacity=".55"/><g stroke="url(#snLogo)" stroke-width="2.4" stroke-linecap="round"><line x1="32" y1="8" x2="32" y2="20"/><line x1="32" y1="44" x2="32" y2="56"/><line x1="8" y1="32" x2="20" y2="32"/><line x1="44" y1="32" x2="56" y2="32"/></g><g fill="#64D2FF"><circle cx="56" cy="32" r="3.2"/><circle cx="32" cy="8" r="3.2"/><circle cx="8" cy="32" r="3.2"/><circle cx="32" cy="56" r="3.2"/></g><g fill="#c9c9d6"><circle cx="46" cy="18" r="2.6"/><circle cx="18" cy="18" r="2.6"/><circle cx="18" cy="46" r="2.6"/><circle cx="46" cy="46" r="2.6"/></g><circle cx="32" cy="32" r="11" fill="url(#snLogo)"/><circle cx="28.5" cy="28.5" r="4" fill="#fff" opacity=".92"/></svg></div></div>
-    <h1>SUPERNOVA</h1>
+    <div class="logo-box"><img src="img/logo.png" alt="Supernova" style="width:250px; height:auto; object-fit:contain;"></div>
     <p class="subtitle">Platform Operasional ISP — <b>ZTE C320</b> &amp; <b>MikroTik</b></p>
 
     <?php if($error): ?>

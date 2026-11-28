@@ -375,6 +375,57 @@ function execute_zte_ssh($cmd_array)
     }
 }
 
+// Eksekusi banyak perintah OLT dalam SATU sesi SSH (pipelined) agar cepat.
+// Dipakai untuk verifikasi WAN IP banyak ONU sekaligus.
+function execute_zte_ssh_batch($cmd_array)
+{
+    global $conn;
+
+    $conf = [];
+    $res = $conn->query("SELECT setting_key, setting_value FROM settings");
+    while ($r = $res->fetch_assoc()) { $conf[$r['setting_key']] = $r['setting_value']; }
+    $conf = decryptConf($conf, ['olt_pass']);
+
+    try {
+        $ssh = new SSH2($conf['olt_ip'], (int)($conf['olt_port'] ?: 22));
+        if (!$ssh->login($conf['olt_user'], $conf['olt_pass'])) {
+            return 'LOGIN GAGAL';
+        }
+        $ssh->setTerminal('vt100');
+        $ssh->enablePTY();
+        $ssh->setTimeout(2);
+        $ssh->openShell();
+        usleep(400000);
+        $ssh->read();
+
+        // Kirim semua perintah berurutan dengan jeda kecil
+        foreach ($cmd_array as $cmd) {
+            $ssh->write($cmd . chr(13));
+            usleep(80000);
+        }
+
+        // Baca seluruh output sampai SEMUA prompt diterima (satu prompt per perintah),
+        // bukan berhenti di prompt pertama.
+        $ssh->setTimeout(12);
+        $output = '';
+        $expect = count($cmd_array);
+        $seen = 0;
+        for ($i = 0; $i < $expect + 8; $i++) {
+            $chunk = $ssh->read('Supernova-GT#');
+            if ($chunk === false || $chunk === '') break;
+            $output .= $chunk;
+            $seen += substr_count($chunk, 'Supernova-GT#');
+            if ($seen >= $expect) break;
+        }
+        $ssh->setTimeout(2);
+
+        return $output;
+
+    } catch (Exception $e) {
+        return 'ERROR : ' . $e->getMessage();
+    }
+}
+
 
 // ==============================================
 // PENGATURAN KREDENSIAL OLT & Mikrotik
@@ -392,13 +443,13 @@ if ($action == 'get_settings') {
 elseif ($action == 'update_settings') {
     $data = json_decode(file_get_contents('php://input'), true);
     if ($data) {
-        foreach(['olt_ip', 'olt_port', 'olt_user'] as $key) {
-            $val = $conn->real_escape_string($data[$key]);
-            $conn->query("UPDATE settings SET setting_value='$val' WHERE setting_key='$key'");
+        foreach(['olt_ip', 'olt_port', 'olt_user', 'olt_latitude', 'olt_longitude'] as $key) {
+            $val = $conn->real_escape_string($data[$key] ?? '');
+            $conn->query("INSERT INTO settings (setting_key, setting_value) VALUES ('$key', '$val') ON DUPLICATE KEY UPDATE setting_value='$val'");
         }
         if (!empty($data['olt_pass'])) {
             $val = $conn->real_escape_string(app_encrypt($data['olt_pass']));
-            $conn->query("UPDATE settings SET setting_value='$val' WHERE setting_key='olt_pass'");
+            $conn->query("INSERT INTO settings (setting_key, setting_value) VALUES ('olt_pass', '$val') ON DUPLICATE KEY UPDATE setting_value='$val'");
         }
         addAudit($conn, 'UBAH_SETTING', 'Konfigurasi OLT diperbarui');
         echo json_encode(['status' => 'success']);
@@ -407,7 +458,7 @@ elseif ($action == 'update_settings') {
 elseif ($action == 'update_mk_settings') {
     $data = json_decode(file_get_contents('php://input'), true);
     if ($data) {
-        foreach(['mikrotik_ip', 'mikrotik_port', 'mikrotik_user'] as $key) {
+        foreach(['mikrotik_ip', 'mikrotik_port', 'mikrotik_user', 'mikrotik_latitude', 'mikrotik_longitude'] as $key) {
             $val = $conn->real_escape_string($data[$key] ?? '');
             $conn->query("INSERT INTO settings (setting_key, setting_value) VALUES ('$key', '$val') ON DUPLICATE KEY UPDATE setting_value='$val'");
         }
@@ -485,6 +536,96 @@ elseif ($action == 'olt_reboot') {
         'data'   => $output
     ]);
 
+    exit;
+}
+
+elseif ($action == 'olt_deploy') {
+    // Deploy Broadband gabungan: langkah 3 (hapus ONU) + 4 (registrasi SN) + 5 (config PPPoE)
+    if (!$is_admin) {
+        echo json_encode(['status' => 'error', 'message' => 'Akses ditolak: hanya admin.']);
+        exit;
+    }
+    $data = json_decode(file_get_contents('php://input'), true);
+
+    $iface    = trim($data['iface'] ?? '');
+    $onu      = trim($data['onu'] ?? '');
+    $sn       = strtoupper(trim($data['sn'] ?? ''));
+    $type     = trim($data['type'] ?? 'ALL-ONT');
+    $nama     = trim($data['nama'] ?? '');
+    $userid   = trim($data['userid'] ?? '');
+    $domain   = trim($data['domain'] ?? '');
+    $pass     = trim($data['pass'] ?? 'supernova');
+    $vlan     = trim($data['vlan'] ?? '210');
+    $profDown = trim($data['profDown'] ?? 'pppoe');
+    $vlanProf = trim($data['vlanProf'] ?? 'PPPOE');
+
+    if ($iface === '' || $onu === '' || $sn === '' || $userid === '') {
+        echo json_encode(['status' => 'error', 'message' => 'Interface, ONU ID, SN ONT, dan User ID wajib diisi.']);
+        exit;
+    }
+    if (!preg_match('#^\d+/\d+/\d+$#', $iface)) {
+        echo json_encode(['status' => 'error', 'message' => 'Format interface tidak valid (contoh 1/2/4).']);
+        exit;
+    }
+    if (!preg_match('/^\d+$/', $onu)) {
+        echo json_encode(['status' => 'error', 'message' => 'ONU ID harus berupa angka.']);
+        exit;
+    }
+    if (!preg_match('/^[A-Z0-9\-]{8,20}$/', $sn)) {
+        echo json_encode(['status' => 'error', 'message' => 'Format SN ONT tidak valid (contoh ZTEGD6D940BB).']);
+        exit;
+    }
+
+    $desc = ($nama !== '') ? $nama . '_' . $userid : $userid;
+
+    // Script gabungan (satu kirim agar cepat): 3. hapus ONU -> 4. daftar SN -> 5. layanan PPPoE
+    // Tanpa 'config t' berlebih (sudah dalam mode config setelah exit dari interface)
+    $script =
+        "config t\n" .
+        "interface gpon-olt_{$iface}\n" .
+        "no onu {$onu}\n" .
+        "exit\n" .
+        "interface gpon-olt_{$iface}\n" .
+        "onu {$onu} type {$type} sn {$sn}\n" .
+        "exit\n" .
+        "exit\n" .
+        "config t\n" .
+        "interface gpon-onu_{$iface}:{$onu}\n" .
+        "Description {$desc}\n" .
+        "tcont 1 name supernova profile {$profDown}\n" .
+        "gemport 1 name supernova tcont 1\n" .
+        "switchport mode hybrid vport 1\n" .
+        "service-port 1 vport 1 user-vlan {$vlan} vlan {$vlan}\n" .
+        "port-identification format DSL-FORUM-PON vport 1\n" .
+        "port-identification sub-option remote-id enable vport 1\n" .
+        "pppoe-intermediate-agent enable vport 1\n" .
+        "pppoe-intermediate-agent trust true replace vport 1\n" .
+        "exit\n" .
+        "pon-onu-mng gpon-onu_{$iface}:{$onu}\n" .
+        "service supernova gemport 1 iphost 1 vlan {$vlan}\n" .
+        "wan-ip mode pppoe username {$userid}{$domain} password {$pass} vlan-profile {$vlanProf} host 1\n" .
+        "ip-host 2 dhcp-enable enable ping-response enable traceroute-response enable\n" .
+        "exit\n" .
+        "exit\n" .
+        "show gpon remote wan-ip gpon-onu_{$iface}:{$onu}\n" .
+        "end\n" .
+        "write";
+
+    $output = execute_zte_ssh([$script]);
+
+    addAudit($conn, 'DEPLOY_BROADBAND', "Deploy OLT {$iface}:{$onu} sn={$sn} | " . ($nama ?: $userid));
+    sendTelegram($conn,
+        "🚀 Deploy Broadband ke OLT\n━━━━━━━━━━━━━━━━\n" .
+        "🏠 Pelanggan : " . ($nama ?: '-') . "\n" .
+        "📡 SN ONT : {$sn}\n" .
+        "📌 Port : {$iface}:{$onu}\n" .
+        "👤 User : {$userid}{$domain}\n" .
+        "👨‍💼 Oleh : " . ($_SESSION['username'] ?? '?'));
+
+    echo json_encode([
+        'status' => 'success',
+        'data'   => $output
+    ]);
     exit;
 }
 
@@ -602,7 +743,27 @@ elseif ($action == 'get_map') {
             'longitude'     => (float)$row['longitude']
         );
     }
-    echo json_encode(['status' => 'success', 'data' => $rows]);
+
+    // Koordinat perangkat (OLT & MikroTik) dari settings
+    $devices = [];
+    $sKeys = ['olt_ip', 'olt_latitude', 'olt_longitude', 'mikrotik_ip', 'mikrotik_latitude', 'mikrotik_longitude'];
+    $set = array_fill_keys($sKeys, '');
+    $sr = $conn->query("SELECT setting_key, setting_value FROM settings WHERE setting_key IN ('" . implode("','", $sKeys) . "')");
+    if ($sr) while ($row = $sr->fetch_assoc()) { $set[$row['setting_key']] = $row['setting_value']; }
+    if ((float)$set['olt_latitude'] != 0 && (float)$set['olt_longitude'] != 0) {
+        $devices[] = array(
+            'type' => 'olt', 'name' => 'OLT ' . ($set['olt_ip'] ?: ''),
+            'latitude' => (float)$set['olt_latitude'], 'longitude' => (float)$set['olt_longitude']
+        );
+    }
+    if ((float)$set['mikrotik_latitude'] != 0 && (float)$set['mikrotik_longitude'] != 0) {
+        $devices[] = array(
+            'type' => 'mikrotik', 'name' => 'MikroTik ' . ($set['mikrotik_ip'] ?: ''),
+            'latitude' => (float)$set['mikrotik_latitude'], 'longitude' => (float)$set['mikrotik_longitude']
+        );
+    }
+
+    echo json_encode(['status' => 'success', 'data' => $rows, 'devices' => $devices]);
     exit;
 }
 elseif ($action == 'add') {
@@ -1068,7 +1229,15 @@ elseif ($action == 'mikrotik_get_profiles') {
 elseif ($action == 'mikrotik_monitor') {
     require_once 'routeros_api.class.php';
 
-    if (($cache = cacheRead('monitor', 3)) !== null) { echo $cache; exit; }
+    // Mode cepat (tanpa deep): hanya sesi MikroTik, cache 10 detik -> respons instan untuk dashboard & auto-refresh 4s.
+    // Mode deep (deep=1): plus verifikasi WAN IP ke OLT, cache 90 detik -> akurat, jarang dieksekusi.
+    $deep = !empty($_GET['deep']);
+
+    if (!$deep) {
+        if (($cache = cacheRead('monitor', 10)) !== null) { echo $cache; exit; }
+    } else {
+        if (($cache = cacheRead('monitor_deep', 90)) !== null) { echo $cache; exit; }
+    }
 
     $conf = [];
     $res = $conn->query("SELECT setting_key, setting_value FROM settings WHERE setting_key LIKE 'mikrotik_%'");
@@ -1131,17 +1300,63 @@ $m_port = (!empty($conf['mikrotik_port'])) ? (int)$conf['mikrotik_port'] : 8728;
         if ($n !== '') $activeByUser[strtolower($n)] = $a;
     }
 
+    // ==== VERIFIKASI OLT (hanya saat mode DEEP, cache 90 detik) ====
+    // Sesi PPPoE MikroTik bisa basi (stale) saat ONT mati / WAN belum dapat IP.
+    // Cara akurat: cek Current IP via 'show gpon remote wan-ip' per ONU (pipelined).
+    // $wanOnline = null  => deep tidak dijalankan / gagal -> pakai status MikroTik saja.
+    $wanOnline = null;
+    if ($deep) {
+        $candidates = [];
+        foreach ($cust as $c) {
+            $key = strtolower(trim($c['id_pppoe'] ?? ''));
+            $port = trim($c['port'] ?? '');
+            if (isset($activeByUser[$key]) && $port !== '' && strtoupper($port) !== 'BELUM ADA') {
+                $candidates[] = $port;
+            }
+        }
+        $candidates = array_values(array_unique($candidates));
+        if (!empty($candidates) && count($candidates) <= 250) {
+            $cmdsWan = ['terminal length 0'];
+            foreach ($candidates as $port) {
+                $cmdsWan[] = "show gpon remote wan-ip gpon-onu_{$port}";
+            }
+            $wanOut = execute_zte_ssh_batch($cmdsWan);
+            $wanOk = (strpos($wanOut, 'LOGIN GAGAL') === false)
+                  && (strpos($wanOut, 'ERROR') === false)
+                  && strpos($wanOut, 'Current IP') !== false;
+            if ($wanOk) {
+                $wanOnline = [];
+                foreach ($candidates as $port) {
+                    if (preg_match('/show gpon remote wan-ip gpon-onu_' . preg_quote($port, '/') . '(.*?)(?=show gpon remote wan-ip|$)/s', $wanOut, $bm)
+                        && preg_match('/Current IP:\s*(\S+)/', $bm[1], $ipm)
+                        && filter_var($ipm[1], FILTER_VALIDATE_IP)
+                        && $ipm[1] !== '0.0.0.0') {
+                        $wanOnline[$port] = $ipm[1];
+                    }
+                }
+            }
+        }
+    }
+
     $list = [];
     foreach ($cust as $c) {
         $key = strtolower(trim($c['id_pppoe'] ?? ''));
         $act = isset($activeByUser[$key]) ? $activeByUser[$key] : null;
+        $online = (bool)$act;
+        $port = trim($c['port'] ?? '');
+        // Deep check aktif: online hanya bila OLT melaporkan Current IP nyata di ONU tsb
+        if ($online && $wanOnline !== null) {
+            $online = isset($wanOnline[$port]);
+        }
         $list[] = [
             'id'         => (int)$c['id'],
             'client'     => $c['client'],
             'paket'      => (int)$c['paket'],
             'id_pppoe'   => $c['id_pppoe'],
             'port'       => $c['port'],
-            'online'     => $act ? true : false,
+            'online'     => $online,
+            'olt_state'  => $wanOnline !== null ? (isset($wanOnline[$port]) ? 'working' : 'down') : null,
+            'wan_ip'     => $wanOnline !== null ? (isset($wanOnline[$port]) ? $wanOnline[$port] : null) : null,
             'address'    => $act && isset($act['address']) ? $act['address'] : null,
             'caller_id'  => $act && isset($act['caller-id']) ? $act['caller-id'] : null,
             'interface'  => $act && isset($act['interface']) ? $act['interface'] : null,
@@ -1156,11 +1371,14 @@ $m_port = (!empty($conf['mikrotik_port'])) ? (int)$conf['mikrotik_port'] : 8728;
 
     $payload = json_encode([
         'status'       => 'success',
-        'online_total' => count($active),
+        'online_total' => count(array_filter($list, function ($x) { return $x['online']; })),
         'online'       => $list,
+        'deep'         => $deep,
+        'olt_verified' => ($deep && $wanOnline !== null),
+        'wan_verified' => ($deep && $wanOnline !== null),
         'error'        => $err
     ]);
-    if ($err === null) cacheWrite('monitor', $payload);
+    if ($err === null) cacheWrite($deep ? 'monitor_deep' : 'monitor', $payload);
     echo $payload;
     exit;
 }
@@ -1337,6 +1555,7 @@ elseif ($action == 'mikrotik_sync_secret') {
 
     $data = json_decode(file_get_contents('php://input'), true);
     $username = trim($data['username'] ?? '');
+    $newname  = trim($data['newname'] ?? '');
     $comment  = $data['comment'] ?? null;
     $profile  = $data['profile'] ?? null;
 
@@ -1344,8 +1563,12 @@ elseif ($action == 'mikrotik_sync_secret') {
         echo json_encode(['status' => 'error', 'message' => 'Username PPPoE wajib diisi!']);
         exit;
     }
-    if ($comment === null && $profile === null) {
+    if ($comment === null && $profile === null && $newname === '') {
         echo json_encode(['status' => 'error', 'message' => 'Tidak ada data yang perlu disinkronkan.']);
+        exit;
+    }
+    if ($newname !== '' && strlen($newname) > 80) {
+        echo json_encode(['status' => 'error', 'message' => 'Username baru maksimal 80 karakter.']);
         exit;
     }
 
@@ -1366,6 +1589,8 @@ elseif ($action == 'mikrotik_sync_secret') {
         $attrs = ['=.id' => $read[0]['.id']];
         if ($comment !== null) $attrs['=comment'] = $comment;
         if ($profile !== null && $profile !== '') $attrs['=profile'] = $profile;
+        // Ganti nama/username secret bila ID PPPoE diubah di aplikasi
+        if ($newname !== '' && strtolower($newname) !== strtolower($username)) $attrs['=name'] = $newname;
 
         $API->write('/ppp/secret/set', $attrs);
         $setResp = $API->read();
