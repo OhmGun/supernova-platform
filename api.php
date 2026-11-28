@@ -1237,4 +1237,71 @@ elseif ($action == 'mikrotik_add_secret') {
     }
     exit;
 }
+elseif ($action == 'mikrotik_sync_secret') {
+    // Sinkronkan data secret PPPoE yang sudah ada (dipanggil saat edit pelanggan di aplikasi).
+    if (!$is_admin) {
+        echo json_encode(['status' => 'error', 'message' => 'Akses ditolak: hanya admin.']);
+        exit;
+    }
+    require_once 'routeros_api.class.php';
+
+    $conf = [];
+    $res = $conn->query("SELECT setting_key, setting_value FROM settings WHERE setting_key LIKE 'mikrotik_%'");
+    while($r = $res->fetch_assoc()) { $conf[$r['setting_key']] = $r['setting_value']; }
+    $conf = decryptConf($conf, ['mikrotik_pass']);
+
+    $m_ip   = $conf['mikrotik_ip'] ?? '192.168.88.1';
+    $m_port = (!empty($conf['mikrotik_port'])) ? (int)$conf['mikrotik_port'] : 8728;
+    $m_user = $conf['mikrotik_user'] ?? 'admin';
+    $m_pass = $conf['mikrotik_pass'] ?? '';
+
+    $data = json_decode(file_get_contents('php://input'), true);
+    $username = trim($data['username'] ?? '');
+    $comment  = $data['comment'] ?? null;
+    $profile  = $data['profile'] ?? null;
+
+    if ($username === '') {
+        echo json_encode(['status' => 'error', 'message' => 'Username PPPoE wajib diisi!']);
+        exit;
+    }
+    if ($comment === null && $profile === null) {
+        echo json_encode(['status' => 'error', 'message' => 'Tidak ada data yang perlu disinkronkan.']);
+        exit;
+    }
+
+    $API = new RouterosAPI();
+    $API->debug = false;
+    $API->ssl = (!empty($conf['mikrotik_ssl']) && ($conf['mikrotik_ssl'] === '1' || $conf['mikrotik_ssl'] === 'true'));
+
+    if ($API->connect($m_ip, $m_user, $m_pass, $m_port)) {
+        $API->write('/ppp/secret/print', '?name=' . $username);
+        $read = $API->read();
+
+        if (empty($read) || isset($read['error']) || !isset($read[0]['.id'])) {
+            echo json_encode(['status' => 'error', 'message' => 'Secret PPPoE "' . $username . '" tidak ditemukan di MikroTik.']);
+            $API->disconnect();
+            exit;
+        }
+
+        $attrs = ['.id' => $read[0]['.id']];
+        if ($comment !== null) $attrs['=comment'] = $comment;
+        if ($profile !== null && $profile !== '') $attrs['=profile'] = $profile;
+
+        $API->write('/ppp/secret/set', $attrs);
+        $setResp = $API->read();
+        $API->disconnect();
+
+        if (is_array($setResp) && isset($setResp['error'])) {
+            $msg = 'Gagal sinkronkan secret di MikroTik';
+            if (isset($setResp[0]['message'])) $msg .= ': ' . $setResp[0]['message'];
+            echo json_encode(['status' => 'error', 'message' => $msg]);
+            exit;
+        }
+
+        echo json_encode(['status' => 'success', 'message' => 'Secret PPPoE berhasil disinkronkan ke MikroTik.']);
+    } else {
+        echo json_encode(['status' => 'error', 'message' => "Gagal konek MikroTik API ke IP $m_ip:$m_port. " . ($API->lastError ?: 'Periksa koneksi/kredensial.')]);
+    }
+    exit;
+}
 ?>

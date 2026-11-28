@@ -1540,12 +1540,13 @@ async function saveEditCustomerDB() {
                 alert('Pelanggan tersimpan di database, tetapi Password PPPoE kosong — PPPoE tidak dibuat di MikroTik.');
             } else {
                 const mkProfile = data.paket_profile || 'default';
+                const mkComment = data.client + (data.port && data.port !== 'BELUM ADA' ? ' | Port ' + data.port : '');
                 try {
                     const mkRes = await fetch('api.php?action=mikrotik_add_secret', { method: 'POST', body: JSON.stringify({
                         username: data.id_pppoe,
                         password: pass,
                         profile: mkProfile,
-                        comment: data.client,
+                        comment: mkComment,
                         skip_db_check: 1
                     })});
                     const mkJson = await mkRes.json();
@@ -1557,6 +1558,24 @@ async function saveEditCustomerDB() {
                 } catch (e) {
                     alert('Pelanggan tersimpan di database, TAPI gagal hubungi MikroTik untuk buat PPPoE.');
                 }
+            }
+        } else if (!isNew && id) {
+            // EDIT: sinkronkan nama + port OLT + paket ke comment/profile secret di MikroTik
+            const mkComment = data.client + (data.port && data.port !== 'BELUM ADA' ? ' | Port ' + data.port : '');
+            const syncBody = { username: data.id_pppoe, comment: mkComment };
+            if (data.paket_profile) syncBody.profile = data.paket_profile;
+            try {
+                const syncRes = await fetch('api.php?action=mikrotik_sync_secret', { method: 'POST', body: JSON.stringify(syncBody) });
+                const syncJson = await syncRes.json();
+                if (syncJson.status === 'success') {
+                    showToast('Data berhasil diupdate & disinkronkan ke MikroTik!');
+                } else if (syncJson.message && syncJson.message.includes('tidak ditemukan')) {
+                    showToast('Data berhasil diupdate (secret MikroTik tidak ada, sinkron dilewati).');
+                } else {
+                    alert('Data terupdate di database, TAPI gagal sinkron ke MikroTik: ' + syncJson.message);
+                }
+            } catch (e) {
+                alert('Data terupdate di database, TAPI gagal hubungi MikroTik untuk sinkronisasi.');
             }
         } else {
             showToast(id ? 'Data berhasil diupdate!' : (json.updated ? 'Nama/ID PPPoE sudah ada — data diperbarui!' : 'Pelanggan baru berhasil ditambahkan!'));
