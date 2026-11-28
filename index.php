@@ -43,6 +43,16 @@ $default_tab = 'dashboard';
   label { display: block; font-size: 11px; color: var(--muted); margin-bottom: 4px; font-weight:600; }
   input, select { width: 100%; background: var(--input); border: 1px solid #334155; color: #fff; padding: 8px 10px; border-radius: 6px; font-size: 13px; font-family: monospace; }
   input:focus, select:focus { outline: none; border-color: var(--primary); }
+  .search-wrap { position: relative; }
+  .search-wrap input { padding-right: 30px; }
+  .search-clear {
+    position: absolute; right: 5px; top: 50%; transform: translateY(-50%);
+    background: rgba(148,163,184,.2); border: none; color: #cbd5e1;
+    width: 20px; height: 20px; border-radius: 50%; font-size: 15px; line-height: 1;
+    cursor: pointer; display: none; align-items: center; justify-content: center;
+    font-family: Arial, sans-serif; padding: 0;
+  }
+  .search-clear:hover { background: rgba(239,68,68,.75); color: #fff; }
   .btn { background: var(--primary); color: #fff; border: none; padding: 8px 14px; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; transition: background 0.2s; }
   .btn:hover { background: var(--primary-hover); }
   .btn-generate { background: #059669; color: #fff; width: 100%; padding: 12px; font-size: 14px; font-weight: 700; margin-top: 8px; border-radius: 8px; box-shadow: 0 4px 12px rgba(5, 150, 105, 0.3); }
@@ -406,7 +416,9 @@ $default_tab = 'dashboard';
 
     <div class="card" style="display:flex; flex-wrap:wrap; gap:10px; justify-content:space-between; align-items:center;">
       <div style="display:flex; gap:10px; flex-grow:1; max-width:620px; flex-wrap:wrap;">
-        <input type="text" id="search-pelanggan" placeholder="Cari nama pelanggan, SN ONT, ID PPPoE, atau port..." oninput="liveSearch()" onkeydown="if(event.key==='Enter') doSearch()" style="flex:1; min-width:200px;">
+        <div style="flex:1; min-width:200px; position:relative;">
+          <input type="text" id="search-pelanggan" placeholder="Cari nama pelanggan, SN ONT, ID PPPoE, atau port..." oninput="liveSearch()" onkeydown="if(event.key==='Enter') doSearch()" style="width:100%;">
+        </div>
         <select id="filter-status" style="max-width:140px;" onchange="renderCustomers()">
           <option value="">Semua Status</option>
           <option value="Aktif">Aktif</option>
@@ -540,7 +552,9 @@ $default_tab = 'dashboard';
         Status diambil langsung dari sesi aktif PPPoE MikroTik (dicocokkan via ID PPPoE). Auto-refresh tiap 30 detik.
       </div>
       <div style="display:flex; gap:8px; align-items:center;">
-        <input type="text" id="mon-search" placeholder="Cari nama / IP..." oninput="filterMonitoring()" style="min-width:230px; padding:8px 12px; border-radius:8px; border:1px solid var(--border); background:#0b1220; color:var(--text); font-size:12px;">
+        <div style="min-width:230px; position:relative;">
+          <input type="text" id="mon-search" placeholder="Cari nama / IP..." oninput="filterMonitoring()" style="min-width:230px; padding:8px 12px; border-radius:8px; border:1px solid var(--border); background:#0b1220; color:var(--text); font-size:12px;">
+        </div>
         <button class="btn btn-amber" onclick="loadMonitoring()"><i class="fa-solid fa-rotate"></i> Segarkan</button>
         <button class="btn btn-emerald" onclick="exportMonitoringCSV()"><i class="fa-solid fa-download"></i> Export CSV</button>
       </div>
@@ -859,6 +873,32 @@ function liveSearch() {
   clearTimeout(searchTimer);
   searchTimer = setTimeout(doSearch, 300);
 }
+
+// Tombol tanda silang (×) untuk menghapus isi field pencarian
+function attachSearchClear(inputId, onClear) {
+  const input = document.getElementById(inputId);
+  if (!input) return;
+  const wrap = input.parentElement;
+  if (wrap) wrap.classList.add('search-wrap');
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'search-clear';
+  btn.innerHTML = '&times;';
+  btn.title = 'Hapus pencarian';
+  btn.addEventListener('click', () => {
+    input.value = '';
+    btn.style.display = 'none';
+    if (typeof onClear === 'function') onClear();
+    input.focus();
+  });
+  if (wrap) wrap.appendChild(btn);
+  const update = () => { btn.style.display = input.value ? 'flex' : 'none'; };
+  input.addEventListener('input', update);
+  input.addEventListener('keyup', update);
+  update();
+}
+attachSearchClear('search-pelanggan', doSearch);
+attachSearchClear('mon-search', filterMonitoring);
 
 function statusBadge(st) {
   const map = {

@@ -1283,7 +1283,7 @@ elseif ($action == 'mikrotik_sync_secret') {
             exit;
         }
 
-        $attrs = ['.id' => $read[0]['.id']];
+        $attrs = ['=.id' => $read[0]['.id']];
         if ($comment !== null) $attrs['=comment'] = $comment;
         if ($profile !== null && $profile !== '') $attrs['=profile'] = $profile;
 
