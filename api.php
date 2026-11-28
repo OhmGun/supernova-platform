@@ -69,6 +69,12 @@ if ($col_check && $col_check->num_rows > 0) {
     $conn->query("ALTER TABLE pelanggan CHANGE `port_olt` `port` VARCHAR(50) DEFAULT 'BELUM ADA'");
 }
 
+// Kolom nama profile MikroTik (contoh: 'Bisnis 50M', 'Home 30M') — dipisah dari paket (angka Mbps)
+$colPp = $conn->query("SHOW COLUMNS FROM pelanggan LIKE 'paket_profile'");
+if (!$colPp || $colPp->num_rows === 0) {
+    $conn->query("ALTER TABLE pelanggan ADD COLUMN paket_profile VARCHAR(50) NOT NULL DEFAULT '' AFTER paket");
+}
+
 // Cek jumlah data pelanggan, jika 0 maka otomatis masukkan 108 data pelanggan
 $cek_isi = $conn->query("SELECT COUNT(*) AS total FROM pelanggan");
 $row_isi = $cek_isi ? $cek_isi->fetch_assoc() : ['total' => 0];
@@ -231,6 +237,7 @@ function normalizeCustomer($data, &$err) {
     $err = '';
     $client   = trim((string)($data['client'] ?? ''));
     $paket    = (int)($data['paket'] ?? 0);
+    $paket_profile = trim((string)($data['paket_profile'] ?? ''));
     $sn       = strtoupper(trim((string)($data['sn'] ?? '')));
     $id_pppoe = trim((string)($data['id_pppoe'] ?? ''));
     $port     = trim((string)($data['port'] ?? ''));
@@ -238,13 +245,14 @@ function normalizeCustomer($data, &$err) {
 
     if ($client === '' || strlen($client) > 100) { $err = 'Nama pelanggan wajib diisi (maks 100 karakter).'; return false; }
     if ($paket < 1 || $paket > 100000) { $err = 'Paket tidak valid (1–100000 Mbps).'; return false; }
+    if (strlen($paket_profile) > 50) { $err = 'Nama profile paket maks 50 karakter.'; return false; }
     if ($sn !== '' && !preg_match('/^[A-Z0-9\-]{8,20}$/', $sn)) { $err = 'Format SN ONT tidak valid (alphanumerik 8-20, contoh ZTEGD6D940BB).'; return false; }
     if ($id_pppoe === '' || strlen($id_pppoe) > 80) { $err = 'ID PPPoE wajib diisi (maks 80).'; return false; }
     if ($port !== '' && strtoupper($port) !== 'BELUM ADA' && strtoupper($port) !== '-' && !preg_match('#^\d+/\d+/\d+:\d+$#', $port)) { $err = 'Format port OLT tidak valid (contoh 1/2/8:1).'; return false; }
 
     if ($sn === '') $sn = '-';
     if ($port === '' || strtoupper($port) === '-' || strtoupper($port) === 'BELUM ADA') $port = 'BELUM ADA';
-    return ['client' => $client, 'paket' => $paket, 'sn' => $sn, 'id_pppoe' => $id_pppoe, 'port' => $port, 'status' => $status];
+    return ['client' => $client, 'paket' => $paket, 'paket_profile' => $paket_profile, 'sn' => $sn, 'id_pppoe' => $id_pppoe, 'port' => $port, 'status' => $status];
 }
 
 // Dekripsi otomatis field kredensial (fallback plaintext lama).
@@ -520,13 +528,14 @@ elseif ($action == 'get') {
     if ($result) {
         while($row = $result->fetch_assoc()) {
             $data[] = array(
-                'id'       => (int)($row['id'] ?? 0),
-                'client'   => $row['client'] ?? '',
-                'paket'    => (int)($row['paket'] ?? 30),
-                'sn'       => $row['sn'] ?? '-',
-                'id_pppoe' => $row['id_pppoe'] ?? '-',
-                'port'     => $row['port'] ?? 'BELUM ADA',
-                'status'   => $row['status'] ?? 'Aktif'
+                'id'            => (int)($row['id'] ?? 0),
+                'client'        => $row['client'] ?? '',
+                'paket'         => (int)($row['paket'] ?? 30),
+                'paket_profile' => $row['paket_profile'] ?? '',
+                'sn'            => $row['sn'] ?? '-',
+                'id_pppoe'      => $row['id_pppoe'] ?? '-',
+                'port'          => $row['port'] ?? 'BELUM ADA',
+                'status'        => $row['status'] ?? 'Aktif'
             );
         }
     }
@@ -562,9 +571,9 @@ elseif ($action == 'add') {
         }
     }
     if ($existing) {
-        $stmt = $conn->prepare("UPDATE pelanggan SET client=?, paket=?, sn=?, id_pppoe=?, port=?, status='Aktif' WHERE id=?");
+        $stmt = $conn->prepare("UPDATE pelanggan SET client=?, paket=?, paket_profile=?, sn=?, id_pppoe=?, port=?, status='Aktif' WHERE id=?");
         if ($stmt) {
-            $stmt->bind_param('sisssi', $norm['client'], $norm['paket'], $norm['sn'], $norm['id_pppoe'], $norm['port'], $existing);
+            $stmt->bind_param('sissssi', $norm['client'], $norm['paket'], $norm['paket_profile'], $norm['sn'], $norm['id_pppoe'], $norm['port'], $existing);
             if ($stmt->execute()) {
                 addAudit($conn, 'UBAH_PELANGGAN_BROADBAND', $norm['client'] . ' | ' . $norm['id_pppoe'], $existing);
                 echo json_encode(['status' => 'success', 'updated' => true, 'id' => $existing]);
@@ -573,9 +582,9 @@ elseif ($action == 'add') {
         } else echo json_encode(['status' => 'error', 'message' => $conn->error]);
         exit;
     }
-    $stmt = $conn->prepare("INSERT INTO pelanggan (client, paket, sn, id_pppoe, port, status) VALUES (?, ?, ?, ?, ?, ?)");
+    $stmt = $conn->prepare("INSERT INTO pelanggan (client, paket, paket_profile, sn, id_pppoe, port, status) VALUES (?, ?, ?, ?, ?, ?, ?)");
     if ($stmt) {
-        $stmt->bind_param('sissss', $norm['client'], $norm['paket'], $norm['sn'], $norm['id_pppoe'], $norm['port'], $norm['status']);
+        $stmt->bind_param('sisssss', $norm['client'], $norm['paket'], $norm['paket_profile'], $norm['sn'], $norm['id_pppoe'], $norm['port'], $norm['status']);
         if ($stmt->execute()) {
             addAudit($conn, 'TAMBAH_PELANGGAN', $norm['client'] . ' | ' . $norm['id_pppoe'], $stmt->insert_id);
             echo json_encode(['status' => 'success']);
@@ -592,9 +601,9 @@ elseif ($action == 'update') {
             echo json_encode(['status' => 'error', 'message' => $err]);
             exit;
         }
-        $stmt = $conn->prepare("UPDATE pelanggan SET client=?, paket=?, sn=?, id_pppoe=?, port=?, status=? WHERE id=?");
+        $stmt = $conn->prepare("UPDATE pelanggan SET client=?, paket=?, paket_profile=?, sn=?, id_pppoe=?, port=?, status=? WHERE id=?");
         if ($stmt) {
-            $stmt->bind_param('sissssi', $norm['client'], $norm['paket'], $norm['sn'], $norm['id_pppoe'], $norm['port'], $norm['status'], $id);
+            $stmt->bind_param('sisssssi', $norm['client'], $norm['paket'], $norm['paket_profile'], $norm['sn'], $norm['id_pppoe'], $norm['port'], $norm['status'], $id);
             if ($stmt->execute()) {
                 addAudit($conn, 'UBAH_PELANGGAN', $norm['client'] . ' | ' . $norm['id_pppoe'], $id);
                 echo json_encode(['status' => 'success']);
@@ -979,7 +988,7 @@ elseif ($action == 'mikrotik_get_profiles') {
 elseif ($action == 'mikrotik_monitor') {
     require_once 'routeros_api.class.php';
 
-    if (($cache = cacheRead('monitor', 5)) !== null) { echo $cache; exit; }
+    if (($cache = cacheRead('monitor', 3)) !== null) { echo $cache; exit; }
 
     $conf = [];
     $res = $conn->query("SELECT setting_key, setting_value FROM settings WHERE setting_key LIKE 'mikrotik_%'");
@@ -1000,8 +1009,34 @@ $m_port = (!empty($conf['mikrotik_port'])) ? (int)$conf['mikrotik_port'] : 8728;
     if ($API->connect($m_ip, $m_user, $m_pass, $m_port)) {
         $API->write('/ppp/active/print');
         $active = $API->read();
-        $API->disconnect();
         if (isset($active['error'])) { unset($active['error']); }
+
+        // Baca queue simple dinamis per pelanggan untuk kecepatan TX/RX realtime (bps)
+        // queue dinamis PPPoE namanya <pppoe-<username>>, field 'rate' = upload/download bps.
+        $rateByUser = [];
+        $bytesByUser = [];
+        try {
+            $API->write('/queue/simple/print');
+            $queues = $API->read();
+            if (is_array($queues) && !isset($queues['error'])) {
+                foreach ($queues as $qq) {
+                    $qname = $qq['name'] ?? '';
+                    if (!preg_match('/^<pppoe-(.+)>$/', $qname, $m2)) continue;
+                    $uname = strtolower(trim($m2[1]));
+                    if ($uname === '') continue;
+                    if (isset($qq['rate']) && strpos($qq['rate'], '/') !== false) {
+                        list($up, $down) = explode('/', (string)$qq['rate']);
+                        $rateByUser[$uname] = [(float)$up, (float)$down];
+                    }
+                    if (isset($qq['bytes']) && strpos($qq['bytes'], '/') !== false) {
+                        list($upB, $downB) = explode('/', (string)$qq['bytes']);
+                        $bytesByUser[$uname] = [(float)$upB, (float)$downB];
+                    }
+                }
+            }
+        } catch (Throwable $e) { /* queue tidak tersedia, biarkan kosong */ }
+
+        $API->disconnect();
     } else {
         $err = "Gagal terhubung ke MikroTik ($m_ip:$m_port). " . ($API->lastError ?: 'Periksa koneksi/kredensial.');
     }
@@ -1032,6 +1067,10 @@ $m_port = (!empty($conf['mikrotik_port'])) ? (int)$conf['mikrotik_port'] : 8728;
             'interface'  => $act && isset($act['interface']) ? $act['interface'] : null,
             'uptime'     => $act && isset($act['uptime']) ? $act['uptime'] : null,
             'login_time' => $act && isset($act['login-time']) ? $act['login-time'] : null,
+            'rx_rate'    => isset($rateByUser[$key]) ? $rateByUser[$key][1] : 0,   // download bps
+            'tx_rate'    => isset($rateByUser[$key]) ? $rateByUser[$key][0] : 0,   // upload bps
+            'rx_byte'    => isset($bytesByUser[$key]) ? $bytesByUser[$key][1] : 0, // download bytes kumulatif
+            'tx_byte'    => isset($bytesByUser[$key]) ? $bytesByUser[$key][0] : 0, // upload bytes kumulatif,
         ];
     }
 
@@ -1137,6 +1176,9 @@ elseif ($action == 'mikrotik_add_secret') {
     $password = $data['password'] ?? '';
     $profile  = $data['profile'] ?? 'default';
     $comment  = $data['comment'] ?? '';
+    // Dari modal Tambah Pelanggan: DB sudah disimpan lebih dulu, jadi cek duplikat DB dilewati
+    // (cek duplikat di MikroTik tetap dijalankan).
+    $skipDb  = !empty($data['skip_db_check']);
 
     if (empty($username) || empty($password)) {
         echo json_encode(['status' => 'error', 'message' => 'Username dan Password PPPoE wajib diisi!']);
@@ -1159,13 +1201,15 @@ elseif ($action == 'mikrotik_add_secret') {
             exit;
         }
 
-        // Cek duplikat di database pelanggan
-        $cekDb = $conn->prepare("SELECT id FROM pelanggan WHERE id_pppoe = ? LIMIT 1");
-        $cekDb->bind_param('s', $username); $cekDb->execute();
-        if ($cekDb->get_result()->num_rows > 0) {
-            echo json_encode(['status' => 'error', 'message' => 'Gagal: Username PPPoE "' . $username . '" sudah dipakai pelanggan lain di database!']);
-            $API->disconnect();
-            exit;
+        // Cek duplikat di database pelanggan (kecuali dipanggil dari modal Tambah Pelanggan)
+        if (!$skipDb) {
+            $cekDb = $conn->prepare("SELECT id FROM pelanggan WHERE id_pppoe = ? LIMIT 1");
+            $cekDb->bind_param('s', $username); $cekDb->execute();
+            if ($cekDb->get_result()->num_rows > 0) {
+                echo json_encode(['status' => 'error', 'message' => 'Gagal: Username PPPoE "' . $username . '" sudah dipakai pelanggan lain di database!']);
+                $API->disconnect();
+                exit;
+            }
         }
 
         // TAMBAH SECRET - SATU write dengan semua parameter (format API benar)

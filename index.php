@@ -481,6 +481,12 @@ $default_tab = 'dashboard';
   </div>
 </div>
 
+    <button class="btn btn-emerald admin-only"
+        onclick="openAddModal()">
+        <i class="fa-solid fa-user-plus"></i>
+        Tambah Pelanggan
+    </button>
+
     <button class="btn btn-amber"
         onclick="scanOfflineONU()">
         <i class="fa-solid fa-magnifying-glass"></i>
@@ -542,22 +548,22 @@ $default_tab = 'dashboard';
 
     <div id="mon-error" class="alert alert-warn hidden" style="margin-bottom:12px;"></div>
 
-    <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(500px, 1fr)); gap:14px; align-items:start;">
-      <div class="card" style="padding:0; overflow:hidden;">
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:14px; align-items:start;">
+      <div class="card" style="padding:0; overflow:hidden; min-width:0;">
         <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 14px; border-bottom:1px solid var(--border);">
           <span style="font-weight:700; color:#34d399; font-size:13px;"><i class="fa-solid fa-wifi"></i> Online</span>
           <span class="badge" style="color:#34d399; border-color:#10b981; background:rgba(16,185,129,.15);" id="mon-online-count">0</span>
         </div>
         <div class="table-scroll">
-          <table>
+          <table style="width:100%; table-layout:fixed;">
             <thead>
               <tr>
-                <th style="white-space:nowrap;">No. ID</th>
+                <th style="white-space:nowrap; width:44px;">No.</th>
                 <th style="white-space:nowrap;">Nama Pelanggan</th>
-                <th style="white-space:nowrap;">ID PPPoE</th>
-                <th style="white-space:nowrap;">Port OLT</th>
-                <th style="white-space:nowrap;">Alamat IP</th>
-                <th style="white-space:nowrap;">Uptime</th>
+                <th style="white-space:nowrap; width:150px;">ID PPPoE</th>
+                <th style="white-space:nowrap; width:110px;">Port OLT</th>
+                <th style="white-space:nowrap; width:130px;">Uptime</th>
+                <th style="white-space:nowrap; width:170px;">TX / RX (Realtime)</th>
               </tr>
             </thead>
             <tbody id="monitor-tbody-online"></tbody>
@@ -565,21 +571,20 @@ $default_tab = 'dashboard';
         </div>
       </div>
 
-      <div class="card" style="padding:0; overflow:hidden;">
+      <div class="card" style="padding:0; overflow:hidden; min-width:0;">
         <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 14px; border-bottom:1px solid var(--border);">
           <span style="font-weight:700; color:#fbbf24; font-size:13px;"><i class="fa-solid fa-wifi-slash"></i> Offline</span>
           <span class="badge" style="color:#fcd34d; border-color:#f59e0b; background:rgba(245,158,11,.12);" id="mon-offline-count">0</span>
         </div>
         <div class="table-scroll">
-          <table>
+          <table style="width:100%; table-layout:fixed;">
             <thead>
               <tr>
-                <th style="white-space:nowrap;">No. ID</th>
+                <th style="white-space:nowrap; width:44px;">No.</th>
                 <th style="white-space:nowrap;">Nama Pelanggan</th>
-                <th style="white-space:nowrap;">ID PPPoE</th>
-                <th style="white-space:nowrap;">Port OLT</th>
-                <th style="white-space:nowrap;">Alamat IP</th>
-                <th style="white-space:nowrap;">Uptime</th>
+                <th style="white-space:nowrap; width:150px;">ID PPPoE</th>
+                <th style="white-space:nowrap; width:110px;">Port OLT</th>
+                <th style="white-space:nowrap; width:130px;">Uptime</th>
               </tr>
             </thead>
             <tbody id="monitor-tbody-offline"></tbody>
@@ -694,16 +699,27 @@ $default_tab = 'dashboard';
 
 </div>
 
-<!-- MODAL EDIT DATA PELANGGAN -->
+<!-- MODAL EDIT / TAMBAH DATA PELANGGAN -->
 <div id="edit-modal" class="modal-overlay hidden">
   <div class="modal-card">
-    <h3 style="margin-top:0; margin-bottom:18px; color:#818cf8;">Edit Data Pelanggan</h3>
+    <h3 id="edit-modal-title" style="margin-top:0; margin-bottom:18px; color:#818cf8;">Edit Data Pelanggan</h3>
     <input type="hidden" id="edit-id">
     <div style="margin-bottom:12px;"><label>Nama Pelanggan</label><input type="text" id="edit-nama"></div>
-    <div style="margin-bottom:12px;"><label>Paket (Mbps)</label><input type="number" id="edit-paket"></div>
-    <div style="margin-bottom:12px;"><label>SN ONT</label><input type="text" id="edit-sn" style="color:#fcd34d"></div>
-    <div style="margin-bottom:12px;"><label>ID PPPoE</label><input type="text" id="edit-id-pppoe" style="color:#6ee7b7"></div>
-    <div style="margin-bottom:12px;"><label>Port OLT</label><input type="text" id="edit-port"></div>
+    <div style="margin-bottom:12px;">
+      <label>Paket (Mbps) <span id="edit-paket-status" style="font-weight:normal; font-size:11px; color:var(--muted);"></span></label>
+      <select id="edit-paket"><option value="30">30 Mbps</option></select>
+    </div>
+    <div style="margin-bottom:12px;"><label>SN ONT</label><input type="text" id="edit-sn" style="color:#fcd34d" placeholder="Contoh: ZTEGD6D940BB"></div>
+    <div style="margin-bottom:12px;">
+      <label>ID PPPoE</label>
+      <div style="display:flex; gap:8px;">
+        <input type="text" id="edit-id-pppoe" style="color:#6ee7b7; flex:1;" placeholder="Contoh: 121251720115@supernovanet">
+        <button type="button" id="btn-edit-generate" class="btn btn-muted" style="padding:8px 12px; white-space:nowrap;" onclick="generateEditPppoe()" title="Auto-generate ID unik (dicek ke MikroTik + database)"><i class="fa-solid fa-wand-magic-sparkles"></i> Generate</button>
+      </div>
+      <div id="edit-pppoe-status" style="font-size:11px; margin-top:4px; color:var(--muted); min-height:14px;"></div>
+    </div>
+    <div style="margin-bottom:12px;"><label>Password PPPoE</label><input type="text" id="edit-pppoe-pass" value="supernova" style="color:#fbbf24"></div>
+    <div style="margin-bottom:12px;"><label>Port OLT</label><input type="text" id="edit-port" placeholder="Contoh: 1/2/8:1 (atau kosongkan)"></div>
     <div style="margin-bottom:20px;">
       <label>Status</label>
       <select id="edit-status">
@@ -712,9 +728,15 @@ $default_tab = 'dashboard';
         <option value="Cabut">Cabut</option>
       </select>
     </div>
+    <div style="margin-bottom:16px;">
+      <label id="edit-mk-create-wrap" style="display:flex; align-items:center; gap:8px; cursor:pointer; font-weight:600;">
+        <input type="checkbox" id="edit-mk-create" checked style="width:auto;">
+        <span><i class="fa-solid fa-router"></i> Buat PPPoE juga di MikroTik</span>
+      </label>
+    </div>
     <div style="display:flex; justify-content:flex-end; gap:10px;">
       <button class="btn btn-muted" onclick="closeEditModal()">Batal</button>
-      <button class="btn btn-emerald admin-only" onclick="saveEditCustomerDB()">Simpan Perubahan</button>
+      <button id="edit-modal-save" class="btn btn-emerald admin-only" onclick="saveEditCustomerDB()">Simpan Perubahan</button>
     </div>
   </div>
 </div>
@@ -1034,7 +1056,7 @@ function renderCustomers() {
       <tr>
         <td style="font-family:monospace; color:var(--muted)">${esc(String(c.id_pppoe || '').split('@')[0] || '-')}</td>
         <td style="font-weight:600">${esc(c.client)}</td>
-        <td style="font-family:monospace; color:#a5b4fc; white-space:nowrap;">${esc(c.paket)} Mbps</td>
+        <td style="font-family:monospace; color:#a5b4fc; white-space:nowrap;" title="${esc(c.paket_profile || (c.paket + ' Mbps'))}">${esc(c.paket_profile || (c.paket + ' Mbps'))}</td>
         <td style="font-family:monospace; color:#fcd34d">${esc(c.sn || '-')}</td>
         <td style="font-family:monospace">${esc(c.id_pppoe)}</td>
         <td style="font-family:monospace; color:${validPort ? '#6ee7b7' : '#fda4af'}">${esc(c.port)}</td>
@@ -1392,40 +1414,154 @@ async function deleteCustomer(id) {
   }
 }
 
+// Auto-generate ID PPPoE (dengan domain @supernovanet) + password supernova
+async function generateEditPppoe() {
+  const btn = document.getElementById('btn-edit-generate');
+  const statusEl = document.getElementById('edit-pppoe-status');
+  const setStatus = (txt, color) => { if (statusEl) { statusEl.textContent = txt; statusEl.style.color = color || 'var(--muted)'; } };
+  if (btn) { btn.disabled = true; btn.style.opacity = '.6'; }
+  setStatus('Men-generate ID unik... cek MikroTik + database...', '#38bdf8');
+  try {
+    const res = await fetch('api.php?action=mikrotik_generate_username', { method: 'POST', body: '{}' });
+    const json = await res.json();
+    if (json.status === 'success' && json.username) {
+      document.getElementById('edit-id-pppoe').value = json.username;
+      document.getElementById('edit-pppoe-pass').value = 'supernova';
+      setStatus('✓ ID ' + json.id + '@supernovanet — tidak konflik' + (json.checked_mikrotik ? '' : ' (router tidak terhubung, dicek DB saja)'), '#34d399');
+      showToast('ID auto-generate: ' + json.username);
+    } else {
+      setStatus('[X] ' + (json.message || 'Gagal generate ID'), '#f87171');
+      alert('[X] ' + (json.message || 'Gagal generate ID'));
+    }
+  } catch (e) {
+    setStatus('[X] Error: gagal hubungi API generate.', '#f87171');
+  } finally {
+    if (btn) { btn.disabled = false; btn.style.opacity = ''; }
+  }
+}
+
+const FALLBACK_PAKET = [10, 20, 30, 50, 100, 200];
+
+// Muat daftar paket dari profile PPPoE MikroTik (nama profile asli, mis. 'Bisnis 50M').
+// Bila router off, pakai daftar standar (Mbps).
+async function loadEditPaketOptions(selected) {
+  const select = document.getElementById('edit-paket');
+  const statusEl = document.getElementById('edit-paket-status');
+  selected = String(selected || '');
+  const renderNumeric = () => {
+    select.innerHTML = FALLBACK_PAKET.map(p => `<option value="${p}">${p} Mbps</option>`).join('');
+    const sel = /^\d+$/.test(selected) ? selected : '30';
+    if (!FALLBACK_PAKET.includes(Number(sel))) select.innerHTML += `<option value="${sel}" selected>${sel} Mbps</option>`;
+    select.value = sel;
+  };
+  if (statusEl) statusEl.textContent = 'memuat profile MikroTik...';
+  try {
+    const res = await fetch('api.php?action=mikrotik_get_profiles');
+    const json = await res.json();
+    if (json.status === 'success' && Array.isArray(json.data) && json.data.length) {
+      select.innerHTML = json.data.map(p => `<option value="${esc(p)}">${esc(p)}</option>`).join('');
+      if (selected && json.data.indexOf(selected) === -1) {
+        select.innerHTML += `<option value="${esc(selected)}" selected>${esc(selected)}</option>`;
+      }
+      select.value = selected && json.data.indexOf(selected) !== -1 ? selected : json.data[0];
+      if (statusEl) statusEl.textContent = 'dari profile MikroTik';
+    } else {
+      renderNumeric();
+      if (statusEl) statusEl.textContent = 'gagal ambil profile, pakai daftar standar';
+    }
+  } catch (e) {
+    renderNumeric();
+    if (statusEl) statusEl.textContent = 'error koneksi, pakai daftar standar';
+  }
+}
+
+function openAddModal() {
+  document.getElementById('edit-id').value = '';
+  document.getElementById('edit-nama').value = '';
+  loadEditPaketOptions(30);
+  document.getElementById('edit-sn').value = '';
+  document.getElementById('edit-id-pppoe').value = '';
+  document.getElementById('edit-pppoe-pass').value = 'supernova';
+  document.getElementById('edit-port').value = '';
+  document.getElementById('edit-status').value = 'Aktif';
+  document.getElementById('edit-modal-title').textContent = 'Tambah Pelanggan Baru';
+  document.getElementById('edit-mk-create-wrap').style.display = 'flex';
+  document.getElementById('edit-mk-create').checked = true;
+  document.getElementById('edit-modal-save').innerHTML = '<i class="fa-solid fa-plus"></i> Simpan Pelanggan Baru';
+  document.getElementById('edit-modal').classList.remove('hidden');
+  setTimeout(() => document.getElementById('edit-nama').focus(), 60);
+}
+
 function openEditModal(id) {
   const c = customers.find(x => x.id == id);
   if(!c) return;
   document.getElementById('edit-id').value = c.id;
   document.getElementById('edit-nama').value = c.client;
-  document.getElementById('edit-paket').value = c.paket;
+  loadEditPaketOptions(c.paket_profile || c.paket);
   document.getElementById('edit-sn').value = c.sn || '-';
   document.getElementById('edit-id-pppoe').value = c.id_pppoe;
+  document.getElementById('edit-pppoe-pass').value = 'supernova';
   document.getElementById('edit-port').value = c.port;
   document.getElementById('edit-status').value = c.status || 'Aktif';
+  document.getElementById('edit-modal-title').textContent = 'Edit Data Pelanggan';
+  document.getElementById('edit-mk-create-wrap').style.display = 'none';
+  document.getElementById('edit-modal-save').innerHTML = '<i class="fa-solid fa-floppy-disk"></i> Simpan Perubahan';
   document.getElementById('edit-modal').classList.remove('hidden');
 }
 
 function closeEditModal() { document.getElementById('edit-modal').classList.add('hidden'); }
 
 async function saveEditCustomerDB() {
+  const id = document.getElementById('edit-id').value;
+  const rawPaket = document.getElementById('edit-paket').value;
+  const mNum = String(rawPaket).match(/(\d+)/);
   const data = {
-    id: parseInt(document.getElementById('edit-id').value),
     client: document.getElementById('edit-nama').value.trim(),
-    paket: Number(document.getElementById('edit-paket').value) || 30,
+    paket: mNum ? parseInt(mNum[1], 10) : 30,
+    paket_profile: /^\d+$/.test(rawPaket) ? '' : rawPaket,
     sn: document.getElementById('edit-sn').value.trim().toUpperCase() || '-',
     id_pppoe: document.getElementById('edit-id-pppoe').value.trim(),
-    port: document.getElementById('edit-port').value.trim(),
+    port: document.getElementById('edit-port').value.trim() || 'BELUM ADA',
     status: document.getElementById('edit-status').value
   };
+  if (id) data.id = parseInt(id);
+  const action = id ? 'update' : 'add';
   try {
-    let res = await fetch('api.php?action=update', { method: 'POST', body: JSON.stringify(data) });
+    let res = await fetch('api.php?action=' + action, { method: 'POST', body: JSON.stringify(data) });
     let json = await res.json();
     if (json.status === 'success') {
-        showToast('Data berhasil diupdate!');
+        const isNew = !id && !json.updated;
+        if (isNew && document.getElementById('edit-mk-create').checked) {
+            const pass = document.getElementById('edit-pppoe-pass').value.trim();
+            if (!pass) {
+                alert('Pelanggan tersimpan di database, tetapi Password PPPoE kosong — PPPoE tidak dibuat di MikroTik.');
+            } else {
+                const mkProfile = data.paket_profile || 'default';
+                try {
+                    const mkRes = await fetch('api.php?action=mikrotik_add_secret', { method: 'POST', body: JSON.stringify({
+                        username: data.id_pppoe,
+                        password: pass,
+                        profile: mkProfile,
+                        comment: data.client,
+                        skip_db_check: 1
+                    })});
+                    const mkJson = await mkRes.json();
+                    if (mkJson.status === 'success') {
+                        showToast('Pelanggan tersimpan & PPPoE berhasil dibuat di MikroTik!');
+                    } else {
+                        alert('Pelanggan tersimpan di database, TAPI gagal buat PPPoE di MikroTik: ' + mkJson.message);
+                    }
+                } catch (e) {
+                    alert('Pelanggan tersimpan di database, TAPI gagal hubungi MikroTik untuk buat PPPoE.');
+                }
+            }
+        } else {
+            showToast(id ? 'Data berhasil diupdate!' : (json.updated ? 'Nama/ID PPPoE sudah ada — data diperbarui!' : 'Pelanggan baru berhasil ditambahkan!'));
+        }
         closeEditModal();
         loadDataDB(); 
-    } else { alert("Gagal update: " + json.message); }
-  } catch (e) { alert("Error saat update ke API MySQL"); }
+    } else { alert("Gagal simpan: " + json.message); }
+  } catch (e) { alert("Error saat simpan ke API MySQL"); }
 }
 
 // Konfigurasi OLT & MikroTik Settings
@@ -1655,7 +1791,7 @@ function resetBB() {
 
 function exportCSV() {
   const rows = ['NO,CLIENT,PAKET,SN ONT,ID,PORT OLT'].concat(
-    customers.map((c, i) => `${i+1},"${c.client}",${c.paket},${c.sn || '-'},${c.id_pppoe},${c.port}`)
+    customers.map((c, i) => `${i+1},"${c.client}",${c.paket_profile ? '"' + c.paket_profile + '"' : c.paket},${c.sn || '-'},${c.id_pppoe},${c.port}`)
   );
   const blob = new Blob([rows.join('\n')], { type: 'text/csv' });
   const a = document.createElement('a');
@@ -1789,11 +1925,16 @@ function monStatusBadge(online) {
 async function loadMonitoring() {
   const onTb = document.getElementById('monitor-tbody-online');
   const offTb = document.getElementById('monitor-tbody-offline');
-  const skRows = '<tr><td colspan="6" style="padding:14px 12px;">' + '<div class="skel" style="margin:6px 0;"></div>'.repeat(4) + '</td></tr>';
-  if (onTb) onTb.innerHTML = skRows;
-  if (offTb) offTb.innerHTML = skRows;
   const errBox = document.getElementById('mon-error');
   if (errBox) errBox.classList.add('hidden');
+  // Tampilkan skeleton hanya saat belum ada data (refresh pertama), agar refresh 4dt seamless
+  const hasData = (window.monData && window.monData.length > 0);
+  if (!hasData) {
+    const skRows = '<tr><td colspan="6" style="padding:14px 12px;">' + '<div class="skel" style="margin:6px 0;"></div>'.repeat(4) + '</td></tr>';
+    const skRowsOff = '<tr><td colspan="5" style="padding:14px 12px;">' + '<div class="skel" style="margin:6px 0;"></div>'.repeat(4) + '</td></tr>';
+    if (onTb) onTb.innerHTML = skRows;
+    if (offTb) offTb.innerHTML = skRowsOff;
+  }
   try {
     let res = await fetch('api.php?action=mikrotik_monitor');
     let json = await res.json();
@@ -1815,7 +1956,7 @@ async function loadMonitoring() {
     filterMonitoring();
   } catch (e) {
     if (onTb) onTb.innerHTML = '<tr><td colspan="6" style="color:#fda4af">Error memuat data monitoring.</td></tr>';
-    if (offTb) offTb.innerHTML = '<tr><td colspan="6" style="color:#fda4af">Error memuat data monitoring.</td></tr>';
+    if (offTb) offTb.innerHTML = '<tr><td colspan="5" style="color:#fda4af">Error memuat data monitoring.</td></tr>';
   }
 }
 
@@ -1859,22 +2000,43 @@ function renderMonitoring(list) {
     return monSortAsc ? String(va).localeCompare(String(vb)) : String(vb).localeCompare(String(va));
   };
 
-  const mk = (c, i) => `
-    <tr>
-      <td style="font-family:monospace; color:var(--muted); white-space:nowrap;">${i + 1}</td>
-      <td style="font-weight:600">${esc(c.client)}</td>
-      <td style="font-family:monospace">${esc(c.id_pppoe)}</td>
-      <td style="font-family:monospace; white-space:nowrap;">${esc(c.port)}</td>
-      <td style="font-family:monospace; color:#38bdf8; white-space:nowrap;">${esc(c.address || '-')}</td>
-      <td style="font-family:monospace; white-space:nowrap;">${esc(c.uptime || '-')}</td>
-    </tr>`;
-  const emptyRow = (txt) => '<tr><td colspan="6" style="text-align:center; color:var(--muted); padding:24px;">' + txt + '</td></tr>';
+  const mk = (c, i, isOnline) => {
+    const name = `<td style="font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${esc(c.client)}</td>`;
+    const idpp = `<td style="font-family:monospace; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${esc(c.id_pppoe)}</td>`;
+    const port = `<td style="font-family:monospace; white-space:nowrap;">${esc(c.port)}</td>`;
+    const uptime = `<td style="font-family:monospace; white-space:nowrap;">${esc(c.uptime || '-')}</td>`;
+    const no = `<td style="font-family:monospace; color:var(--muted); white-space:nowrap;">${i + 1}</td>`;
+    if (isOnline) {
+      // Kecepatan traffic SAAT INI dari queue MikroTik (bps) -> tampilkan sebagai rate, sps. interface detail
+      const fmtRate = (bps) => {
+        if (bps >= 1000000) return (bps/1000000).toFixed(2)+' Mbps';
+        if (bps >= 1000) return (bps/1000).toFixed(1)+' Kbps';
+        return bps+' bps';
+      };
+      const tx = c.tx_rate || 0, rx = c.rx_rate || 0;
+      const rxCls = rx > 0 ? '#34d399' : '#94a3b8';
+      const txCls = tx > 0 ? '#38bdf8' : '#94a3b8';
+      return `<tr>
+        ${no}
+        ${name}
+        ${idpp}
+        ${port}
+        ${uptime}
+        <td style="white-space:nowrap; font-size:12px;">
+          <div style="color:${txCls};"><b>▲ TX:</b> ${fmtRate(tx)}</div>
+          <div style="color:${rxCls};"><b>▼ RX:</b> ${fmtRate(rx)}</div>
+        </td>
+      </tr>`;
+    }
+    return `<tr>${no}${name}${idpp}${port}${uptime}</tr>`;
+  };
+  const emptyRow = (txt, cols) => '<tr><td colspan="' + cols + '" style="text-align:center; color:var(--muted); padding:24px;">' + txt + '</td></tr>';
 
   const onlineRows = list.filter(x => x.online).map(c => ({ c })).sort(cmp);
   const offlineRows = list.filter(x => !x.online).map(c => ({ c })).sort(cmp);
 
-  onlineBox.innerHTML = onlineRows.length ? onlineRows.map((r, i) => mk(r.c, i)).join('') : emptyRow('Tidak ada pelanggan online');
-  offlineBox.innerHTML = offlineRows.length ? offlineRows.map((r, i) => mk(r.c, i)).join('') : emptyRow('Tidak ada pelanggan offline');
+  onlineBox.innerHTML = onlineRows.length ? onlineRows.map((r, i) => mk(r.c, i, true)).join('') : emptyRow('Tidak ada pelanggan online', 6);
+  offlineBox.innerHTML = offlineRows.length ? offlineRows.map((r, i) => mk(r.c, i, false)).join('') : emptyRow('Tidak ada pelanggan offline', 5);
 }
 
 function filterMonitoring() {
@@ -1897,7 +2059,7 @@ function sortMonitoring(col) {
 
 function exportMonitoringCSV() {
   const rows = document.querySelectorAll('#monitor-tbody-online tr, #monitor-tbody-offline tr');
-  const lines = ['NO,NAMA,ID PPPOE,PORT OLT,ALAMAT IP,UPTIME'];
+  const lines = ['NO,NAMA,ID PPPOE,PORT OLT,UPTIME,TX,RX'];
   rows.forEach((tr, i) => {
     const cells = Array.from(tr.querySelectorAll('td')).map(td => '"' + (td.textContent || '').trim().replace(/"/g, '""') + '"');
     lines.push((i + 1) + ',' + cells.join(','));
@@ -1909,10 +2071,13 @@ function exportMonitoringCSV() {
   a.click();
 }
 
+// Auto-refresh Monitoring tiap 4 detik agar traffic (rate TX/RX) terlihat seamless
 setInterval(() => {
   const mv = document.getElementById('view-monitoring');
   if (mv && !mv.classList.contains('hidden')) loadMonitoring();
+}, 4000);
 
+setInterval(() => {
   const dv = document.getElementById('view-dashboard');
   if (dv && !dv.classList.contains('hidden')) loadDashboardRealtime();
 }, 30000);
