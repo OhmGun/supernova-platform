@@ -27,9 +27,7 @@ $default_tab = 'dashboard';
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body {
     background:
-      radial-gradient(1200px 700px at 85% -10%, rgba(10,132,255,.12), transparent 55%),
-      radial-gradient(900px 600px at -5% 115%, rgba(100,210,255,.07), transparent 55%),
-      radial-gradient(700px 420px at 50% 120%, rgba(48,209,88,.05), transparent 55%),
+      radial-gradient(1100px 600px at 85% -10%, rgba(10,132,255,.08), transparent 55%),
       #000;
     color: var(--text);
     font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", "Segoe UI", Roboto, sans-serif;
@@ -37,10 +35,8 @@ $default_tab = 'dashboard';
     -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility;
   }
   header {
-    background: rgba(18,18,24,.5);
+    background: rgba(18,18,24,.92);
     border-bottom: 1px solid rgba(255,255,255,.08);
-    backdrop-filter: blur(24px) saturate(180%);
-    -webkit-backdrop-filter: blur(24px) saturate(180%);
     padding: 10px 20px; position: sticky; top: 0; z-index: 20;
   }
   .header-inner { max-width: 1240px; margin: 0 auto; display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 12px; }
@@ -64,12 +60,10 @@ $default_tab = 'dashboard';
     @media (max-width: 900px) { .grid-main { grid-template-columns: 1fr; } }
     @media (max-width: 1100px) { .two-col { grid-template-columns: 1fr; } }
   .card {
-    background: linear-gradient(180deg, rgba(38,38,48,.62), rgba(22,22,28,.72));
+    background: linear-gradient(180deg, rgba(38,38,48,.92), rgba(22,22,28,.95));
     border: 1px solid rgba(255,255,255,.09);
     border-radius: 16px; padding: 18px; margin-bottom: 16px;
-    box-shadow: 0 12px 32px rgba(0,0,0,.42), inset 0 1px 0 rgba(255,255,255,.07);
-    backdrop-filter: blur(20px) saturate(160%);
-    -webkit-backdrop-filter: blur(20px) saturate(160%);
+    box-shadow: 0 8px 24px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.05);
   }
   .card-header { display: flex; justify-content: space-between; align-items: center; padding-bottom: 12px; margin-bottom: 14px; border-bottom: 1px solid rgba(255,255,255,.08); }
   .card-title { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .8px; color: #86868b; }
@@ -159,9 +153,9 @@ $default_tab = 'dashboard';
     .header-inner { flex-direction: column; align-items: flex-start; }
   }
   .hidden { display: none !important; }
-  #toast { position: fixed; bottom: 22px; right: 22px; background: rgba(28,28,36,.9); color: #fff; padding: 11px 18px; border-radius: 12px; font-size: 12.5px; font-weight: 600; box-shadow: 0 16px 40px rgba(0,0,0,.6), inset 0 1px 0 rgba(255,255,255,.12); border: 1px solid rgba(255,255,255,.1); backdrop-filter: blur(20px); z-index: 99; transition: opacity 0.3s; }
+  #toast { position: fixed; bottom: 22px; right: 22px; background: rgba(28,28,36,.95); color: #fff; padding: 11px 18px; border-radius: 12px; font-size: 12.5px; font-weight: 600; box-shadow: 0 16px 40px rgba(0,0,0,.6), inset 0 1px 0 rgba(255,255,255,.12); border: 1px solid rgba(255,255,255,.1); z-index: 99; transition: opacity 0.3s; }
   
-  .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,.6); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); display: flex; justify-content: center; align-items: center; z-index: 100; }
+  .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,.7); display: flex; justify-content: center; align-items: center; z-index: 1000; }
   .modal-card {
     background: linear-gradient(180deg, rgba(44,44,54,.92), rgba(20,20,26,.95));
     border: 1px solid rgba(255,255,255,.12); border-radius: 18px; padding: 24px; width: 100%; max-width: 440px;
@@ -207,9 +201,7 @@ $default_tab = 'dashboard';
   .app-shell { display: flex; min-height: 100vh; }
   .sidebar {
     width: 240px; flex-shrink: 0; position: sticky; top: 0; height: 100vh;
-    background: rgba(18,18,24,.6);
-    backdrop-filter: blur(30px) saturate(180%);
-    -webkit-backdrop-filter: blur(30px) saturate(180%);
+    background: rgba(18,18,24,.96);
     border-right: 1px solid rgba(255,255,255,.08);
     display: flex; flex-direction: column; padding: 16px 12px; z-index: 40;
   }
@@ -242,9 +234,7 @@ $default_tab = 'dashboard';
   .topbar {
     display: flex; align-items: center; gap: 14px;
     padding: 12px 24px; position: sticky; top: 0; z-index: 30;
-    background: rgba(18,18,24,.5);
-    backdrop-filter: blur(24px) saturate(180%);
-    -webkit-backdrop-filter: blur(24px) saturate(180%);
+    background: rgba(18,18,24,.96);
     border-bottom: 1px solid rgba(255,255,255,.08);
   }
   .topbar-title { font-size: 15px; font-weight: 800; letter-spacing: .2px; }
@@ -547,69 +537,6 @@ $default_tab = 'dashboard';
         </select>
         <button class="btn btn-sm btn-muted" onclick="doSearch()"><i class="fa-solid fa-magnifying-glass"></i> Cari</button>
       </div>
-     <div id="olt-terminal-modal" class="modal-overlay hidden">
-    <div class="modal-card modal-card-lg">
-
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
-
-            <h3 style="margin:0; color:#38bdf8; display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
-                <i class="fa-solid fa-terminal"></i>
-                <span id="olt-terminal-title">Terminal OLT Live</span>
-            </h3>
-
-            <div style="display:flex; gap:8px;">
-
-                <button
-                    class="btn btn-sm btn-outline-primary"
-                    onclick="copyTerminal()"
-                    title="Salin hasil"
-                >
-                    <i class="fa-solid fa-copy"></i> Salin
-                </button>
-
-                <button
-                    id="btn-export-offline"
-                    class="btn btn-sm btn-emerald"
-                    onclick="exportOfflineTXT(window.lastOfflineReport || '')"
-                    style="display:none;"
-                >
-                    Export TXT
-                </button>
-
-                <button
-                    class="btn btn-sm btn-rose"
-                    onclick="closeTerminalModal()"
-                >
-                    Tutup
-                </button>
-
-            </div>
-
-        </div>
-
-        <pre id="olt-terminal-output" class="term">Menunggu koneksi OLT...</pre>
-
-    </div>
-</div>
-
-<div id="history-modal" class="modal-overlay hidden">
-  <div class="modal-card modal-card-lg">
-    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
-      <h3 style="margin:0; color:#38bdf8; display:flex; align-items:center; gap:10px;">
-        <i class="fa-solid fa-clock-rotate-left"></i>
-        <span id="history-title">Riwayat</span>
-      </h3>
-      <button class="btn btn-sm btn-rose" onclick="document.getElementById('history-modal').classList.add('hidden')">Tutup</button>
-    </div>
-    <div style="max-height:420px; overflow:auto;">
-      <table>
-        <thead><tr><th>Waktu</th><th>Aksi</th><th>Detail</th><th>Oleh</th></tr></thead>
-        <tbody id="history-tbody"></tbody>
-      </table>
-    </div>
-  </div>
-</div>
-
     <button class="btn btn-emerald admin-only"
         onclick="openAddModal()">
         <i class="fa-solid fa-user-plus"></i>
@@ -855,6 +782,43 @@ $default_tab = 'dashboard';
   </div>
   </div><!-- /.main -->
 </div><!-- /.app-shell -->
+
+<!-- MODAL TERMINAL OLT LIVE -->
+<div id="olt-terminal-modal" class="modal-overlay hidden">
+  <div class="modal-card modal-card-lg">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+      <h3 style="margin:0; color:#64D2FF; display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+        <i class="fa-solid fa-terminal"></i>
+        <span id="olt-terminal-title">Terminal OLT Live</span>
+      </h3>
+      <div style="display:flex; gap:8px;">
+        <button class="btn btn-sm btn-outline-primary" onclick="copyTerminal()" title="Salin hasil"><i class="fa-solid fa-copy"></i> Salin</button>
+        <button id="btn-export-offline" class="btn btn-sm btn-emerald" onclick="exportOfflineTXT(window.lastOfflineReport || '')" style="display:none;">Export TXT</button>
+        <button class="btn btn-sm btn-rose" onclick="closeTerminalModal()">Tutup</button>
+      </div>
+    </div>
+    <pre id="olt-terminal-output" class="term">Menunggu koneksi OLT...</pre>
+  </div>
+</div>
+
+<!-- MODAL RIWAYAT -->
+<div id="history-modal" class="modal-overlay hidden">
+  <div class="modal-card modal-card-lg">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+      <h3 style="margin:0; color:#64D2FF; display:flex; align-items:center; gap:10px;">
+        <i class="fa-solid fa-clock-rotate-left"></i>
+        <span id="history-title">Riwayat</span>
+      </h3>
+      <button class="btn btn-sm btn-rose" onclick="document.getElementById('history-modal').classList.add('hidden')">Tutup</button>
+    </div>
+    <div style="max-height:420px; overflow:auto;">
+      <table>
+        <thead><tr><th>Waktu</th><th>Aksi</th><th>Detail</th><th>Oleh</th></tr></thead>
+        <tbody id="history-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
 
 <!-- MODAL EDIT / TAMBAH DATA PELANGGAN -->
 <div id="edit-modal" class="modal-overlay hidden">
