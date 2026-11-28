@@ -406,7 +406,7 @@ $default_tab = 'dashboard';
 
     <div class="card" style="display:flex; flex-wrap:wrap; gap:10px; justify-content:space-between; align-items:center;">
       <div style="display:flex; gap:10px; flex-grow:1; max-width:620px; flex-wrap:wrap;">
-        <input type="text" id="search-pelanggan" placeholder="Cari nama pelanggan, SN ONT, ID PPPoE, atau port..." onkeydown="if(event.key==='Enter') doSearch()" style="flex:1; min-width:200px;">
+        <input type="text" id="search-pelanggan" placeholder="Cari nama pelanggan, SN ONT, ID PPPoE, atau port..." oninput="liveSearch()" onkeydown="if(event.key==='Enter') doSearch()" style="flex:1; min-width:200px;">
         <select id="filter-status" style="max-width:140px;" onchange="renderCustomers()">
           <option value="">Semua Status</option>
           <option value="Aktif">Aktif</option>
@@ -540,7 +540,7 @@ $default_tab = 'dashboard';
         Status diambil langsung dari sesi aktif PPPoE MikroTik (dicocokkan via ID PPPoE). Auto-refresh tiap 30 detik.
       </div>
       <div style="display:flex; gap:8px; align-items:center;">
-        <input type="text" id="mon-search" placeholder="Cari nama / ID PPPoE / IP / port..." oninput="filterMonitoring()" style="min-width:230px; padding:8px 12px; border-radius:8px; border:1px solid var(--border); background:#0b1220; color:var(--text); font-size:12px;">
+        <input type="text" id="mon-search" placeholder="Cari nama / IP..." oninput="filterMonitoring()" style="min-width:230px; padding:8px 12px; border-radius:8px; border:1px solid var(--border); background:#0b1220; color:var(--text); font-size:12px;">
         <button class="btn btn-amber" onclick="loadMonitoring()"><i class="fa-solid fa-rotate"></i> Segarkan</button>
         <button class="btn btn-emerald" onclick="exportMonitoringCSV()"><i class="fa-solid fa-download"></i> Export CSV</button>
       </div>
@@ -560,8 +560,6 @@ $default_tab = 'dashboard';
               <tr>
                 <th style="white-space:nowrap; width:44px;">No.</th>
                 <th style="white-space:nowrap;">Nama Pelanggan</th>
-                <th style="white-space:nowrap; width:150px;">ID PPPoE</th>
-                <th style="white-space:nowrap; width:110px;">Port OLT</th>
                 <th style="white-space:nowrap; width:130px;">Uptime</th>
                 <th style="white-space:nowrap; width:170px;">TX / RX (Realtime)</th>
               </tr>
@@ -582,8 +580,6 @@ $default_tab = 'dashboard';
               <tr>
                 <th style="white-space:nowrap; width:44px;">No.</th>
                 <th style="white-space:nowrap;">Nama Pelanggan</th>
-                <th style="white-space:nowrap; width:150px;">ID PPPoE</th>
-                <th style="white-space:nowrap; width:110px;">Port OLT</th>
                 <th style="white-space:nowrap; width:130px;">Uptime</th>
               </tr>
             </thead>
@@ -855,6 +851,13 @@ function doSearch() {
   qDb = document.getElementById('search-pelanggan').value.trim();
   pageDb = 1;
   loadDataDB();
+}
+
+// Pencarian langsung saat mengetik (seperti di halaman Monitoring), dengan debounce 300ms
+let searchTimer = null;
+function liveSearch() {
+  clearTimeout(searchTimer);
+  searchTimer = setTimeout(doSearch, 300);
 }
 
 function statusBadge(st) {
@@ -1930,8 +1933,8 @@ async function loadMonitoring() {
   // Tampilkan skeleton hanya saat belum ada data (refresh pertama), agar refresh 4dt seamless
   const hasData = (window.monData && window.monData.length > 0);
   if (!hasData) {
-    const skRows = '<tr><td colspan="6" style="padding:14px 12px;">' + '<div class="skel" style="margin:6px 0;"></div>'.repeat(4) + '</td></tr>';
-    const skRowsOff = '<tr><td colspan="5" style="padding:14px 12px;">' + '<div class="skel" style="margin:6px 0;"></div>'.repeat(4) + '</td></tr>';
+    const skRows = '<tr><td colspan="4" style="padding:14px 12px;">' + '<div class="skel" style="margin:6px 0;"></div>'.repeat(4) + '</td></tr>';
+    const skRowsOff = '<tr><td colspan="3" style="padding:14px 12px;">' + '<div class="skel" style="margin:6px 0;"></div>'.repeat(4) + '</td></tr>';
     if (onTb) onTb.innerHTML = skRows;
     if (offTb) offTb.innerHTML = skRowsOff;
   }
@@ -2002,8 +2005,6 @@ function renderMonitoring(list) {
 
   const mk = (c, i, isOnline) => {
     const name = `<td style="font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${esc(c.client)}</td>`;
-    const idpp = `<td style="font-family:monospace; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${esc(c.id_pppoe)}</td>`;
-    const port = `<td style="font-family:monospace; white-space:nowrap;">${esc(c.port)}</td>`;
     const uptime = `<td style="font-family:monospace; white-space:nowrap;">${esc(c.uptime || '-')}</td>`;
     const no = `<td style="font-family:monospace; color:var(--muted); white-space:nowrap;">${i + 1}</td>`;
     if (isOnline) {
@@ -2019,8 +2020,6 @@ function renderMonitoring(list) {
       return `<tr>
         ${no}
         ${name}
-        ${idpp}
-        ${port}
         ${uptime}
         <td style="white-space:nowrap; font-size:12px;">
           <div style="color:${txCls};"><b>▲ TX:</b> ${fmtRate(tx)}</div>
@@ -2028,15 +2027,15 @@ function renderMonitoring(list) {
         </td>
       </tr>`;
     }
-    return `<tr>${no}${name}${idpp}${port}${uptime}</tr>`;
+    return `<tr>${no}${name}${uptime}</tr>`;
   };
   const emptyRow = (txt, cols) => '<tr><td colspan="' + cols + '" style="text-align:center; color:var(--muted); padding:24px;">' + txt + '</td></tr>';
 
   const onlineRows = list.filter(x => x.online).map(c => ({ c })).sort(cmp);
   const offlineRows = list.filter(x => !x.online).map(c => ({ c })).sort(cmp);
 
-  onlineBox.innerHTML = onlineRows.length ? onlineRows.map((r, i) => mk(r.c, i, true)).join('') : emptyRow('Tidak ada pelanggan online', 6);
-  offlineBox.innerHTML = offlineRows.length ? offlineRows.map((r, i) => mk(r.c, i, false)).join('') : emptyRow('Tidak ada pelanggan offline', 5);
+  onlineBox.innerHTML = onlineRows.length ? onlineRows.map((r, i) => mk(r.c, i, true)).join('') : emptyRow('Tidak ada pelanggan online', 4);
+  offlineBox.innerHTML = offlineRows.length ? offlineRows.map((r, i) => mk(r.c, i, false)).join('') : emptyRow('Tidak ada pelanggan offline', 3);
 }
 
 function filterMonitoring() {
@@ -2059,7 +2058,7 @@ function sortMonitoring(col) {
 
 function exportMonitoringCSV() {
   const rows = document.querySelectorAll('#monitor-tbody-online tr, #monitor-tbody-offline tr');
-  const lines = ['NO,NAMA,ID PPPOE,PORT OLT,UPTIME,TX,RX'];
+  const lines = ['NO,NAMA,UPTIME,TX,RX'];
   rows.forEach((tr, i) => {
     const cells = Array.from(tr.querySelectorAll('td')).map(td => '"' + (td.textContent || '').trim().replace(/"/g, '""') + '"');
     lines.push((i + 1) + ',' + cells.join(','));
