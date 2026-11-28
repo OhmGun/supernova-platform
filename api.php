@@ -75,6 +75,16 @@ if (!$colPp || $colPp->num_rows === 0) {
     $conn->query("ALTER TABLE pelanggan ADD COLUMN paket_profile VARCHAR(50) NOT NULL DEFAULT '' AFTER paket");
 }
 
+// Kolom koordinat peta (latitude / longitude)
+$colLat = $conn->query("SHOW COLUMNS FROM pelanggan LIKE 'latitude'");
+if (!$colLat || $colLat->num_rows === 0) {
+    $conn->query("ALTER TABLE pelanggan ADD COLUMN latitude DECIMAL(10,7) NOT NULL DEFAULT 0 AFTER port");
+}
+$colLng = $conn->query("SHOW COLUMNS FROM pelanggan LIKE 'longitude'");
+if (!$colLng || $colLng->num_rows === 0) {
+    $conn->query("ALTER TABLE pelanggan ADD COLUMN longitude DECIMAL(10,7) NOT NULL DEFAULT 0 AFTER latitude");
+}
+
 // Cek jumlah data pelanggan, jika 0 maka otomatis masukkan 108 data pelanggan
 $cek_isi = $conn->query("SELECT COUNT(*) AS total FROM pelanggan");
 $row_isi = $cek_isi ? $cek_isi->fetch_assoc() : ['total' => 0];
@@ -233,6 +243,25 @@ if ($action == 'olt_test') {
 // CORE FUNCTION: KONEKSI SSH KE OLT / ROUTER
 // ==============================================
 // Validasi & normalisasi data pelanggan (server-side). Return false + $err jika tidak valid.
+function parseCoordInput($input) {
+    // Menerima: "8.341083", "-8.341083", "8.341083°S", "8°20'27.9\"S", "116°E", "8.341083 S"
+    $s = trim((string)$input);
+    if ($s === '') return 0;
+    $neg = 1;
+    if (preg_match('/[SW]/i', $s)) $neg = -1;               // Selatan / Barat => negatif
+    $clean = preg_replace('/[°˚′\'`"]/', ' ', $s);          // simbol derajat/menit/detik => spasi
+    $clean = preg_replace('/[NSWE]/i', ' ', $clean);        // huruf arah => spasi
+    $clean = preg_replace('/[^0-9.\s-]/', ' ', $clean);     // sisanya buang
+    $parts = preg_split('/\s+/', trim($clean));
+    $nums = array_map('floatval', $parts);
+    foreach ($nums as $n) if (!is_finite($n)) return 0;
+    if (count($nums) === 1) $val = $nums[0];
+    elseif (count($nums) === 2) $val = $nums[0] + $nums[1] / 60;
+    elseif (count($nums) >= 3) $val = $nums[0] + $nums[1] / 60 + $nums[2] / 3600;
+    else return 0;
+    return ($neg < 0) ? -abs($val) : $val;
+}
+
 function normalizeCustomer($data, &$err) {
     $err = '';
     $client   = trim((string)($data['client'] ?? ''));
@@ -250,9 +279,21 @@ function normalizeCustomer($data, &$err) {
     if ($id_pppoe === '' || strlen($id_pppoe) > 80) { $err = 'ID PPPoE wajib diisi (maks 80).'; return false; }
     if ($port !== '' && strtoupper($port) !== 'BELUM ADA' && strtoupper($port) !== '-' && !preg_match('#^\d+/\d+/\d+:\d+$#', $port)) { $err = 'Format port OLT tidak valid (contoh 1/2/8:1).'; return false; }
 
+    // Koordinat peta (opsional). Terima berbagai format: desimal (-8.6499), "8.341083°S", DMS "8°20'27.9\"S"
+    $latitude  = 0;
+    $longitude = 0;
+    if (isset($data['latitude']) && trim((string)$data['latitude']) !== '') {
+        $latitude = parseCoordInput($data['latitude']);
+        if ($latitude < -90 || $latitude > 90) { $err = 'Latitude harus antara -90 s/d 90.'; return false; }
+    }
+    if (isset($data['longitude']) && trim((string)$data['longitude']) !== '') {
+        $longitude = parseCoordInput($data['longitude']);
+        if ($longitude < -180 || $longitude > 180) { $err = 'Longitude harus antara -180 s/d 180.'; return false; }
+    }
+
     if ($sn === '') $sn = '-';
     if ($port === '' || strtoupper($port) === '-' || strtoupper($port) === 'BELUM ADA') $port = 'BELUM ADA';
-    return ['client' => $client, 'paket' => $paket, 'paket_profile' => $paket_profile, 'sn' => $sn, 'id_pppoe' => $id_pppoe, 'port' => $port, 'status' => $status];
+    return ['client' => $client, 'paket' => $paket, 'paket_profile' => $paket_profile, 'sn' => $sn, 'id_pppoe' => $id_pppoe, 'port' => $port, 'status' => $status, 'latitude' => $latitude, 'longitude' => $longitude];
 }
 
 // Dekripsi otomatis field kredensial (fallback plaintext lama).
@@ -377,6 +418,7 @@ elseif ($action == 'update_mk_settings') {
         $ssl = (!empty($data['mikrotik_ssl']) && ($data['mikrotik_ssl'] === '1' || $data['mikrotik_ssl'] === 'true')) ? '1' : '0';
         $conn->query("INSERT INTO settings (setting_key, setting_value) VALUES ('mikrotik_ssl', '$ssl') ON DUPLICATE KEY UPDATE setting_value='$ssl'");
         addAudit($conn, 'UBAH_SETTING', 'Konfigurasi MikroTik API diperbarui');
+        sendTelegram($conn, "⚙️ Config MikroTik API Diperbarui\n━━━━━━━━━━━━━━━━\n🌐 IP : " . ($data['mikrotik_ip'] ?? '') . ":" . ($data['mikrotik_port'] ?? '') . "\n👤 User : " . ($data['mikrotik_user'] ?? '') . "\n👨‍💼 Oleh : " . ($_SESSION['username'] ?? '?'));
         echo json_encode(['status' => 'success']);
     }
 }
@@ -436,7 +478,7 @@ elseif ($action == 'olt_reboot') {
     ]);
 
     addAudit($conn, 'REBOOT_ONT', 'Restart ONU port ' . $port);
-    sendTelegram($conn, "🔄 Restart ONU\nPort OLT: $port\nOleh: " . ($_SESSION['username'] ?? '?'));
+    sendTelegram($conn, "🔄 Restart ONU/ONT\n━━━━━━━━━━━━━━━━\n📌 Port OLT : " . $port . "\n👨‍💼 Oleh : " . ($_SESSION['username'] ?? '?'));
 
     echo json_encode([
         'status' => 'success',
@@ -535,12 +577,34 @@ elseif ($action == 'get') {
                 'sn'            => $row['sn'] ?? '-',
                 'id_pppoe'      => $row['id_pppoe'] ?? '-',
                 'port'          => $row['port'] ?? 'BELUM ADA',
-                'status'        => $row['status'] ?? 'Aktif'
+                'status'        => $row['status'] ?? 'Aktif',
+                'latitude'      => (float)($row['latitude'] ?? 0),
+                'longitude'     => (float)($row['longitude'] ?? 0)
             );
         }
     }
     echo json_encode(['total' => $total, 'page' => $page, 'limit' => $limit, 'data' => $data]);
-} 
+}
+elseif ($action == 'get_map') {
+    // Data koordinat semua pelanggan untuk peta (dashboard / detail)
+    $rows = [];
+    $r = $conn->query("SELECT id, client, paket_profile, paket, id_pppoe, port, status, latitude, longitude FROM pelanggan WHERE latitude <> 0 AND longitude <> 0 ORDER BY client ASC");
+    if ($r) while ($row = $r->fetch_assoc()) {
+        $rows[] = array(
+            'id'            => (int)$row['id'],
+            'client'        => $row['client'],
+            'paket'         => (int)$row['paket'],
+            'paket_profile' => $row['paket_profile'] ?? '',
+            'id_pppoe'      => $row['id_pppoe'] ?? '-',
+            'port'          => $row['port'] ?? 'BELUM ADA',
+            'status'        => $row['status'] ?? 'Aktif',
+            'latitude'      => (float)$row['latitude'],
+            'longitude'     => (float)$row['longitude']
+        );
+    }
+    echo json_encode(['status' => 'success', 'data' => $rows]);
+    exit;
+}
 elseif ($action == 'add') {
     $data = json_decode(file_get_contents('php://input'), true);
     $norm = normalizeCustomer($data, $err);
@@ -571,9 +635,9 @@ elseif ($action == 'add') {
         }
     }
     if ($existing) {
-        $stmt = $conn->prepare("UPDATE pelanggan SET client=?, paket=?, paket_profile=?, sn=?, id_pppoe=?, port=?, status='Aktif' WHERE id=?");
+        $stmt = $conn->prepare("UPDATE pelanggan SET client=?, paket=?, paket_profile=?, sn=?, id_pppoe=?, port=?, status='Aktif', latitude=?, longitude=? WHERE id=?");
         if ($stmt) {
-            $stmt->bind_param('sissssi', $norm['client'], $norm['paket'], $norm['paket_profile'], $norm['sn'], $norm['id_pppoe'], $norm['port'], $existing);
+            $stmt->bind_param('sisssssddi', $norm['client'], $norm['paket'], $norm['paket_profile'], $norm['sn'], $norm['id_pppoe'], $norm['port'], $norm['latitude'], $norm['longitude'], $existing);
             if ($stmt->execute()) {
                 addAudit($conn, 'UBAH_PELANGGAN_BROADBAND', $norm['client'] . ' | ' . $norm['id_pppoe'], $existing);
                 echo json_encode(['status' => 'success', 'updated' => true, 'id' => $existing]);
@@ -582,11 +646,12 @@ elseif ($action == 'add') {
         } else echo json_encode(['status' => 'error', 'message' => $conn->error]);
         exit;
     }
-    $stmt = $conn->prepare("INSERT INTO pelanggan (client, paket, paket_profile, sn, id_pppoe, port, status) VALUES (?, ?, ?, ?, ?, ?, ?)");
+    $stmt = $conn->prepare("INSERT INTO pelanggan (client, paket, paket_profile, sn, id_pppoe, port, status, latitude, longitude) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
     if ($stmt) {
-        $stmt->bind_param('sisssss', $norm['client'], $norm['paket'], $norm['paket_profile'], $norm['sn'], $norm['id_pppoe'], $norm['port'], $norm['status']);
+        $stmt->bind_param('sisssssdd', $norm['client'], $norm['paket'], $norm['paket_profile'], $norm['sn'], $norm['id_pppoe'], $norm['port'], $norm['status'], $norm['latitude'], $norm['longitude']);
         if ($stmt->execute()) {
             addAudit($conn, 'TAMBAH_PELANGGAN', $norm['client'] . ' | ' . $norm['id_pppoe'], $stmt->insert_id);
+            sendTelegram($conn, "🆕 Pelanggan Baru\n━━━━━━━━━━━━━━━━\n🏠 Nama : " . $norm['client'] . "\n📦 Paket : " . ($norm['paket_profile'] ?: $norm['paket'] . ' Mbps') . "\n📌 Port OLT : " . $norm['port'] . "\n👤 ID PPPoE : " . $norm['id_pppoe'] . "\n📊 Status : " . $norm['status'] . "\n👨‍💼 Oleh : " . ($_SESSION['username'] ?? '?'));
             echo json_encode(['status' => 'success']);
         } else echo json_encode(['status' => 'error', 'message' => $conn->error]);
         $stmt->close();
@@ -601,11 +666,12 @@ elseif ($action == 'update') {
             echo json_encode(['status' => 'error', 'message' => $err]);
             exit;
         }
-        $stmt = $conn->prepare("UPDATE pelanggan SET client=?, paket=?, paket_profile=?, sn=?, id_pppoe=?, port=?, status=? WHERE id=?");
+        $stmt = $conn->prepare("UPDATE pelanggan SET client=?, paket=?, paket_profile=?, sn=?, id_pppoe=?, port=?, status=?, latitude=?, longitude=? WHERE id=?");
         if ($stmt) {
-            $stmt->bind_param('sisssssi', $norm['client'], $norm['paket'], $norm['paket_profile'], $norm['sn'], $norm['id_pppoe'], $norm['port'], $norm['status'], $id);
+            $stmt->bind_param('sisssssddi', $norm['client'], $norm['paket'], $norm['paket_profile'], $norm['sn'], $norm['id_pppoe'], $norm['port'], $norm['status'], $norm['latitude'], $norm['longitude'], $id);
             if ($stmt->execute()) {
                 addAudit($conn, 'UBAH_PELANGGAN', $norm['client'] . ' | ' . $norm['id_pppoe'], $id);
+                sendTelegram($conn, "✏️ Pelanggan Diperbarui\n━━━━━━━━━━━━━━━━\n🏠 Nama : " . $norm['client'] . "\n📦 Paket : " . ($norm['paket_profile'] ?: $norm['paket'] . ' Mbps') . "\n📌 Port OLT : " . $norm['port'] . "\n👤 ID PPPoE : " . $norm['id_pppoe'] . "\n📊 Status : " . $norm['status'] . "\n👨‍💼 Oleh : " . ($_SESSION['username'] ?? '?'));
                 echo json_encode(['status' => 'success']);
             } else echo json_encode(['status' => 'error', 'message' => $conn->error]);
             $stmt->close();
@@ -623,6 +689,7 @@ elseif ($action == 'delete') {
             $stmt->bind_param('i', $id);
             if ($stmt->execute()) {
                 addAudit($conn, 'HAPUS_PELANGGAN', $clientName, $id);
+                sendTelegram($conn, "🗑 Pelanggan Dihapus\n━━━━━━━━━━━━━━━━\n🏠 Nama : " . $clientName . "\n👨‍💼 Oleh : " . ($_SESSION['username'] ?? '?'));
                 echo json_encode(['status' => 'success']);
             } else echo json_encode(['status' => 'error', 'message' => $conn->error]);
             $stmt->close();
@@ -647,7 +714,11 @@ elseif ($action == 'add_user') {
         $stmt = $conn->prepare("INSERT INTO users (username, password, role) VALUES (?, ?, ?)");
         if ($stmt) {
             $stmt->bind_param('sss', $u, $p, $r);
-            if ($stmt->execute()) { addAudit($conn, 'TAMBAH_USER', 'User: ' . $u . ' (' . $r . ')'); echo json_encode(['status' => 'success']); }
+            if ($stmt->execute()) { 
+                addAudit($conn, 'TAMBAH_USER', 'User: ' . $u . ' (' . $r . ')'); 
+                sendTelegram($conn, "🔐 Akun Baru Dibuat\n━━━━━━━━━━━━━━━━\n👤 Username : " . $u . "\n🎖 Role : " . ($r === 'admin' ? 'Admin (Full Akses)' : 'Read-Only') . "\n👨‍💼 Oleh : " . ($_SESSION['username'] ?? '?'));
+                echo json_encode(['status' => 'success']); 
+            }
             else echo json_encode(['status' => 'error', 'message' => $conn->error]);
             $stmt->close();
         } else echo json_encode(['status' => 'error', 'message' => $conn->error]);
@@ -691,7 +762,11 @@ elseif ($action == 'delete_user') {
         $stmt = $conn->prepare("DELETE FROM users WHERE id = ?");
         if ($stmt) {
             $stmt->bind_param('i', $id);
-            if ($stmt->execute()) { addAudit($conn, 'HAPUS_USER', 'User: ' . $uname); echo json_encode(['status' => 'success']); }
+            if ($stmt->execute()) { 
+                addAudit($conn, 'HAPUS_USER', 'User: ' . $uname); 
+                sendTelegram($conn, "🔒 Akun Dihapus\n━━━━━━━━━━━━━━━━\n👤 Username : " . $uname . "\n👨‍💼 Oleh : " . ($_SESSION['username'] ?? '?'));
+                echo json_encode(['status' => 'success']); 
+            }
             else echo json_encode(['status' => 'error', 'message' => $conn->error]);
             $stmt->close();
         } else echo json_encode(['status' => 'error', 'message' => $conn->error]);
@@ -759,7 +834,8 @@ elseif ($action == 'set_status') {
     }
 
     addAudit($conn, 'SET_STATUS', $r['client'] . ' -> ' . $st, $id);
-    sendTelegram($conn, "📝 Status pelanggan diubah: " . $r['client'] . "\nStatus: " . $st . "\nOleh: " . ($_SESSION['username'] ?? '?'));
+    $stIcon = ['Aktif' => '🟢', 'Isolir' => '🔴', 'Cabut' => '⚫'][$st] ?? '📝';
+    sendTelegram($conn, $stIcon . " Status Pelanggan Diubah\n━━━━━━━━━━━━━━━━\n🏠 Nama : " . $r['client'] . "\n📊 Status : " . $st . "\n👨‍💼 Oleh : " . ($_SESSION['username'] ?? '?'));
     echo json_encode(['status' => 'success', 'message' => "Status pelanggan diubah menjadi $st." . $mkNote]);
     exit;
 }
@@ -881,6 +957,9 @@ elseif ($action == 'update_telegram') {
         $conn->query("INSERT INTO settings (setting_key, setting_value) VALUES ('$k', '$v') ON DUPLICATE KEY UPDATE setting_value='$v'");
     }
     addAudit($conn, 'UBAH_SETTING', 'Konfigurasi Telegram diperbarui');
+    // Kirim pesan uji agar operator tahu konfigurasi berfungsi
+    $tgl = date('d/m/Y H:i');
+    sendTelegram($conn, "✅ Konfigurasi Telegram Aplikasi Diperbarui\n━━━━━━━━━━━━━━━━\n💬 Notifikasi aplikasi aktif dan terkirim.\n🕒 Waktu : " . $tgl . "\n👨‍💼 Oleh : " . ($_SESSION['username'] ?? '?'));
     echo json_encode(['status' => 'success']);
     exit;
 }
@@ -902,15 +981,16 @@ elseif ($action == 'import_customers') {
             $dup = ($cek->get_result()->num_rows > 0); $cek->close();
         }
         if ($dup) { $gagal++; continue; }
-        $stmt = $conn->prepare("INSERT INTO pelanggan (client, paket, sn, id_pppoe, port, status) VALUES (?, ?, ?, ?, ?, ?)");
+        $stmt = $conn->prepare("INSERT INTO pelanggan (client, paket, sn, id_pppoe, port, status, latitude, longitude) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
         if ($stmt) {
-            $stmt->bind_param('sissss', $norm['client'], $norm['paket'], $norm['sn'], $norm['id_pppoe'], $norm['port'], $norm['status']);
+            $stmt->bind_param('sissssdd', $norm['client'], $norm['paket'], $norm['sn'], $norm['id_pppoe'], $norm['port'], $norm['status'], $norm['latitude'], $norm['longitude']);
             if ($stmt->execute()) { $sukses++; addAudit($conn, 'IMPORT_PELANGGAN', $norm['client'] . ' | ' . $norm['id_pppoe'], $stmt->insert_id); }
             else $gagal++;
             $stmt->close();
         } else $gagal++;
     }
     addAudit($conn, 'IMPORT_CSV', "Import: $sukses sukses, $gagal gagal");
+    sendTelegram($conn, "📥 Import Data Pelanggan\n━━━━━━━━━━━━━━━━\n✅ Sukses : " . $sukses . "\n❌ Gagal : " . $gagal . "\n👨‍💼 Oleh : " . ($_SESSION['username'] ?? '?'));
     echo json_encode(['status' => 'success', 'sukses' => $sukses, 'gagal' => $gagal, 'errors' => $errors]);
     exit;
 }

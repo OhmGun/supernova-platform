@@ -17,85 +17,135 @@ $default_tab = 'dashboard';
 <title>Supernova OLT & MikroTik Provisioning</title>
 <style>
   :root {
-    --bg: #020617; --card: #0f172a; --border: #1e293b; --input: #1e293b;
-    --text: #f8fafc; --muted: #9fb0c9; --primary: #4f46e5; --primary-hover: #4338ca;
-    --emerald: #10b981; --amber: #f59e0b; --rose: #f43f5e; --cyan: #06b6d4;
+    --bg: #000000; --card: rgba(28,28,36,.55); --card-solid: #16161d;
+    --border: rgba(255,255,255,.09); --input: rgba(255,255,255,.09);
+    --text: #f5f5f7; --muted: #98989f;
+    --primary: #0A84FF; --primary-hover: #268fff;
+    --emerald: #30D158; --amber: #FF9F0A; --rose: #FF453A; --cyan: #64D2FF;
+    --purple: #BF5AF2; --yellow: #FFD60A; --teal: #64D2FF; --pink: #FF375F;
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { background: var(--bg); color: var(--text); font-family: system-ui, -apple-system, sans-serif; font-size: 14px; line-height: 1.5; padding-bottom: 40px; }
-  header { background: var(--card); border-bottom: 1px solid var(--border); padding: 12px 20px; position: sticky; top: 0; z-index: 20; }
+  body {
+    background:
+      radial-gradient(1200px 700px at 85% -10%, rgba(10,132,255,.12), transparent 55%),
+      radial-gradient(900px 600px at -5% 115%, rgba(100,210,255,.07), transparent 55%),
+      radial-gradient(700px 420px at 50% 120%, rgba(48,209,88,.05), transparent 55%),
+      #000;
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", "Segoe UI", Roboto, sans-serif;
+    font-size: 14px; line-height: 1.5; padding-bottom: 40px;
+    -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility;
+  }
+  header {
+    background: rgba(18,18,24,.5);
+    border-bottom: 1px solid rgba(255,255,255,.08);
+    backdrop-filter: blur(24px) saturate(180%);
+    -webkit-backdrop-filter: blur(24px) saturate(180%);
+    padding: 10px 20px; position: sticky; top: 0; z-index: 20;
+  }
   .header-inner { max-width: 1240px; margin: 0 auto; display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 12px; }
   .brand { display: flex; align-items: center; gap: 12px; }
-  .logo { width: 38px; height: 38px; background: rgba(15,23,42,.85); border: 1px solid rgba(139,92,246,.4); border-radius: 10px; display: flex; align-items: center; justify-content: center; box-shadow: 0 6px 18px rgba(79,70,229,.25); }
-  .badge { font-size: 11px; background: rgba(79, 70, 229, 0.2); color: #a5b4fc; border: 1px solid rgba(79, 70, 229, 0.4); padding: 2px 8px; border-radius: 99px; font-family: monospace; text-transform:uppercase; }
-  .tabs { display: flex; gap: 4px; background: var(--input); padding: 4px; border-radius: 8px; border: 1px solid #334155; }
-  .tab-btn { background: transparent; color: var(--muted); border: none; padding: 7px 14px; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; transition: 0.2s; }
-  .tab-btn.active { background: var(--primary); color: #fff; }
-  .tab-btn:hover:not(.active) { background: #334155; color: #fff; }
+  .traffic { display: flex; gap: 7px; margin-right: 6px; padding-right: 14px; border-right: 1px solid rgba(255,255,255,.1); }
+  .traffic i { width: 12px; height: 12px; border-radius: 50%; display: block; }
+  .traffic .t-red { background: #FF5F57; } .traffic .t-yel { background: #FEBC2E; } .traffic .t-grn { background: #28C840; }
+  .logo { width: 38px; height: 38px; background: rgba(255,255,255,.07); border: 1px solid rgba(255,255,255,.14); border-radius: 11px; display: flex; align-items: center; justify-content: center; box-shadow: 0 6px 18px rgba(0,0,0,.5), inset 0 1px 0 rgba(255,255,255,.12); }
+  .badge { font-size: 10px; background: rgba(10,132,255,.16); color: #64D2FF; border: 1px solid rgba(10,132,255,.4); padding: 2px 9px; border-radius: 99px; font-family: "SF Mono", SFMono-Regular, ui-monospace, Menlo, monospace; text-transform: uppercase; letter-spacing: .3px; }
+  .tabs { display: flex; gap: 2px; background: rgba(255,255,255,.06); padding: 3px; border-radius: 10px; border: 1px solid rgba(255,255,255,.08); }
+  .tab-btn { background: transparent; color: var(--muted); border: none; padding: 7px 14px; border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer; transition: .18s; }
+  .tab-btn.active { background: rgba(10,132,255,.92); color: #fff; box-shadow: 0 2px 10px rgba(10,132,255,.4); }
+  .tab-btn:hover:not(.active) { background: rgba(255,255,255,.1); color: #fff; }
   .container { max-width: 1240px; margin: 20px auto; padding: 0 16px; }
   .grid-main { display: grid; grid-template-columns: 5fr 7fr; gap: 20px; }
-  @media (max-width: 900px) { .grid-main { grid-template-columns: 1fr; } }
-  .card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 18px; margin-bottom: 16px; }
-  .card-header { display: flex; justify-content: space-between; align-items: center; padding-bottom: 12px; margin-bottom: 14px; border-bottom: 1px solid var(--border); }
-  .card-title { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: #818cf8; }
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .sec-label { display:flex; align-items:center; gap:8px; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.6px; color:var(--muted); margin:4px 0 10px; }
+  .sec-label::after { content:''; flex:1; height:1px; background:rgba(255,255,255,.1); }
+  .hint { font-size:11px; color:var(--muted); line-height:1.5; }
+  .chip { display:inline-flex; align-items:center; gap:6px; font-size:11px; padding:3px 10px; border-radius:99px; border:1px solid rgba(255,255,255,.14); color:#d9d9e3; background:rgba(255,255,255,.07); }
+    @media (max-width: 900px) { .grid-main { grid-template-columns: 1fr; } }
+    @media (max-width: 1100px) { .two-col { grid-template-columns: 1fr; } }
+  .card {
+    background: linear-gradient(180deg, rgba(38,38,48,.62), rgba(22,22,28,.72));
+    border: 1px solid rgba(255,255,255,.09);
+    border-radius: 16px; padding: 18px; margin-bottom: 16px;
+    box-shadow: 0 12px 32px rgba(0,0,0,.42), inset 0 1px 0 rgba(255,255,255,.07);
+    backdrop-filter: blur(20px) saturate(160%);
+    -webkit-backdrop-filter: blur(20px) saturate(160%);
+  }
+  .card-header { display: flex; justify-content: space-between; align-items: center; padding-bottom: 12px; margin-bottom: 14px; border-bottom: 1px solid rgba(255,255,255,.08); }
+  .card-title { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .8px; color: #86868b; }
   .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
   .col-span-2 { grid-column: span 2; }
-  label { display: block; font-size: 11px; color: var(--muted); margin-bottom: 4px; font-weight:600; }
-  input, select { width: 100%; background: var(--input); border: 1px solid #334155; color: #fff; padding: 8px 10px; border-radius: 6px; font-size: 13px; font-family: monospace; }
-  input:focus, select:focus { outline: none; border-color: var(--primary); }
+  label { display: block; font-size: 11px; color: var(--muted); margin-bottom: 5px; font-weight: 600; letter-spacing: .2px; }
+  input, select, textarea {
+    width: 100%; background: rgba(255,255,255,.09);
+    border: 1px solid rgba(255,255,255,.1); color: #fff;
+    padding: 9px 12px; border-radius: 10px; font-size: 13px; font-family: "SF Mono", SFMono-Regular, ui-monospace, Menlo, monospace;
+    transition: border-color .15s, box-shadow .15s;
+  }
+  input:focus, select:focus, textarea:focus { outline: none; border-color: rgba(10,132,255,.7); box-shadow: 0 0 0 3px rgba(10,132,255,.2); }
+  select option, option { background: #16161d; color: #f5f5f7; }
+  select option:checked { background: rgba(10,132,255,.85); color: #fff; }
   .search-wrap { position: relative; }
-  .search-wrap input { padding-right: 30px; }
+  .search-wrap input { padding-right: 34px; }
   .search-clear {
-    position: absolute; right: 5px; top: 50%; transform: translateY(-50%);
-    background: rgba(148,163,184,.2); border: none; color: #cbd5e1;
+    position: absolute; right: 6px; top: 50%; transform: translateY(-50%);
+    background: rgba(255,255,255,.15); border: none; color: #e5e5ea;
     width: 20px; height: 20px; border-radius: 50%; font-size: 15px; line-height: 1;
     cursor: pointer; display: none; align-items: center; justify-content: center;
     font-family: Arial, sans-serif; padding: 0;
   }
-  .search-clear:hover { background: rgba(239,68,68,.75); color: #fff; }
-  .btn { background: var(--primary); color: #fff; border: none; padding: 8px 14px; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; transition: background 0.2s; }
-  .btn:hover { background: var(--primary-hover); }
-  .btn-generate { background: #059669; color: #fff; width: 100%; padding: 12px; font-size: 14px; font-weight: 700; margin-top: 8px; border-radius: 8px; box-shadow: 0 4px 12px rgba(5, 150, 105, 0.3); }
-  .btn-generate:hover { background: #047857; }
-  .btn-sm { padding: 5px 10px; font-size: 12px; }
+  .search-clear:hover { background: rgba(255,69,58,.8); color: #fff; }
+  .btn {
+    background: rgba(10,132,255,.9); color: #fff; border: none;
+    padding: 9px 16px; border-radius: 10px; font-size: 12px; font-weight: 600; cursor: pointer;
+    transition: transform .12s, filter .15s, box-shadow .15s, background .15s;
+    box-shadow: 0 3px 12px rgba(0,0,0,.3), inset 0 1px 0 rgba(255,255,255,.14);
+    display: inline-flex; align-items: center; gap: 6px;
+  }
+  .btn:hover { filter: brightness(1.1); transform: translateY(-1px); }
+  .btn:active { transform: translateY(0); }
+  .btn-generate { background: linear-gradient(180deg, #30D158, #23a94a); color: #fff; width: 100%; padding: 12px; font-size: 14px; font-weight: 700; margin-top: 8px; border-radius: 12px; box-shadow: 0 4px 14px rgba(48,209,88,.3), inset 0 1px 0 rgba(255,255,255,.2); }
+  .btn-generate:hover { background: linear-gradient(180deg, #37e063, #28bd54); }
+  .btn-sm { padding: 5px 11px; font-size: 12px; border-radius: 8px; }
   
-  .btn-emerald { background: rgba(16, 185, 129, 0.15); color: #6ee7b7; border: 1px solid rgba(16, 185, 129, 0.3); }
-  .btn-emerald:hover { background: rgba(16, 185, 129, 0.3); }
-  .btn-amber { background: rgba(245, 158, 11, 0.15); color: #fcd34d; border: 1px solid rgba(245, 158, 11, 0.3); }
-  .btn-amber:hover { background: rgba(245, 158, 11, 0.3); }
-  .btn-rose { background: rgba(244, 63, 94, 0.15); color: #fda4af; border: 1px solid rgba(244, 63, 94, 0.3); }
-  .btn-rose:hover { background: rgba(244, 63, 94, 0.3); }
-  .btn-outline-primary { background: rgba(79, 70, 229, 0.15); color: #a5b4fc; border: 1px solid rgba(79, 70, 229, 0.4); }
-  .btn-outline-primary:hover { background: rgba(79, 70, 229, 0.3); }
-  .btn-muted { background: #1e293b; color: #cbd5e1; border: 1px solid #334155; }
+  .btn-emerald { background: rgba(48,209,88,.16); color: #63e6a5; border: 1px solid rgba(48,209,88,.35); box-shadow: none; }
+  .btn-emerald:hover { background: rgba(48,209,88,.3); }
+  .btn-amber { background: rgba(255,159,10,.16); color: #ffc15e; border: 1px solid rgba(255,159,10,.35); box-shadow: none; }
+  .btn-amber:hover { background: rgba(255,159,10,.3); }
+  .btn-rose { background: rgba(255,69,58,.16); color: #ff8d86; border: 1px solid rgba(255,69,58,.35); box-shadow: none; }
+  .btn-rose:hover { background: rgba(255,69,58,.3); }
+  .btn-outline-primary { background: rgba(10,132,255,.14); color: #64D2FF; border: 1px solid rgba(10,132,255,.4); box-shadow: none; }
+  .btn-outline-primary:hover { background: rgba(10,132,255,.28); }
+  .btn-muted { background: rgba(255,255,255,.1); color: #e5e5ea; border: 1px solid rgba(255,255,255,.12); box-shadow: none; }
+  .btn-muted:hover { background: rgba(255,255,255,.18); }
   
-  pre { background: #020617; border: 1px solid var(--border); padding: 12px; border-radius: 8px; font-family: monospace; font-size: 11.5px; overflow-x: auto; white-space: pre; line-height: 1.5; max-height: 300px; }
-  .alert { padding: 8px 12px; border-radius: 6px; font-size: 11.5px; font-family: monospace; }
-  .alert-warn { background: rgba(245, 158, 11, 0.12); border: 1px solid rgba(245, 158, 11, 0.35); color: #fcd34d; }
-  .alert-ok { background: rgba(16, 185, 129, 0.12); border: 1px solid rgba(16, 185, 129, 0.35); color: #6ee7b7; }
-  .quick-row { display: flex; justify-content: space-between; align-items: center; background: #020617; border: 1px solid var(--border); padding: 6px 10px; border-radius: 6px; margin-bottom: 6px; }
-  .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-bottom: 16px; }
-  .stat-val { font-size: 22px; font-weight: 700; margin-top: 4px; }
+  pre { background: rgba(0,0,0,.5); border: 1px solid var(--border); padding: 12px; border-radius: 10px; font-family: "SF Mono", ui-monospace, Menlo, monospace; font-size: 11.5px; overflow-x: auto; white-space: pre; line-height: 1.5; max-height: 300px; }
+  .alert { padding: 8px 12px; border-radius: 8px; font-size: 11.5px; font-family: "SF Mono", ui-monospace, Menlo, monospace; }
+  .alert-warn { background: rgba(255,159,10,.12); border: 1px solid rgba(255,159,10,.35); color: #ffc15e; }
+  .alert-ok { background: rgba(48,209,88,.12); border: 1px solid rgba(48,209,88,.35); color: #63e6a5; }
+  .quick-row { display: flex; justify-content: space-between; align-items: center; background: rgba(255,255,255,.04); border: 1px solid var(--border); padding: 7px 11px; border-radius: 10px; margin-bottom: 6px; }
+  .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; margin-bottom: 16px; }
+  .stat-val { font-size: 24px; font-weight: 700; margin-top: 4px; letter-spacing: -0.3px; }
   table { width: 100%; border-collapse: collapse; font-size: 12px; }
-  th, td { padding: 9px 12px; text-align: left; border-bottom: 1px solid var(--border); }
-  th { background: #1e293b; color: var(--muted); text-transform: uppercase; font-size: 11px; position: sticky; top: 0; cursor: pointer; user-select: none; }
-  th:hover { color: #fff; background-color: #334155; }
+  th, td { padding: 10px 12px; text-align: left; border-bottom: 1px solid rgba(255,255,255,.07); }
+  th { background: rgba(255,255,255,.045); color: var(--muted); text-transform: uppercase; font-size: 10.5px; letter-spacing: .5px; position: sticky; top: 0; cursor: pointer; user-select: none; }
+  th:hover { color: #fff; background-color: rgba(255,255,255,.1); }
   th::after { content: ' \2195'; font-size: 10px; opacity: 0.5; margin-left: 4px; }
-  th.asc::after { content: ' \2191'; opacity: 1; color: #6ee7b7; }
-  th.desc::after { content: ' \2193'; opacity: 1; color: #fda4af; }
-  tr:hover { background: rgba(30, 41, 59, 0.5); }
-  tbody tr:nth-child(even) { background: rgba(148, 163, 184, 0.05); }
+  th.asc::after { content: ' \2191'; opacity: 1; color: #63e6a5; }
+  th.desc::after { content: ' \2193'; opacity: 1; color: #ff8d86; }
+  tr:hover { background: rgba(255,255,255,.045); }
+  tbody tr:nth-child(even) { background: rgba(255,255,255,.02); }
   .table-scroll { max-height: 72vh; overflow: auto; }
-  input:focus-visible, select:focus-visible, button:focus-visible, a:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
-  .skel { background: linear-gradient(90deg, #1e293b 25%, #2b3a52 50%, #1e293b 75%); background-size: 200% 100%; animation: shimmer 1.2s infinite; border-radius: 4px; height: 12px; }
+  input:focus-visible, select:focus-visible, button:focus-visible, a:focus-visible { outline: 2px solid rgba(10,132,255,.6); outline-offset: 2px; }
+  .skel { background: linear-gradient(90deg, rgba(255,255,255,.06) 25%, rgba(255,255,255,.14) 50%, rgba(255,255,255,.06) 75%); background-size: 200% 100%; animation: shimmer 1.2s infinite; border-radius: 6px; height: 12px; }
   @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
   .quick-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
-  .bar-track { background: #1e293b; height: 10px; border-radius: 6px; overflow: hidden; }
+  .bar-track { background: rgba(255,255,255,.1); height: 10px; border-radius: 6px; overflow: hidden; }
   .bar-fill { height: 100%; border-radius: 6px; transition: width .4s ease; }
   .mon-head { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .8px; padding: 8px 0; border-bottom: 1px solid var(--border); }
-  .mon-item { display: flex; justify-content: space-between; gap: 8px; padding: 7px 10px; font-size: 12px; border-radius: 6px; border-bottom: 1px solid rgba(148,163,184,.08); }
-  .mon-item span { color: var(--muted); font-family: monospace; }
-  .mon-item:hover { background: rgba(148,163,184,.08); }
+  .mon-item { display: flex; justify-content: space-between; gap: 8px; padding: 7px 10px; font-size: 12px; border-radius: 8px; border-bottom: 1px solid rgba(255,255,255,.05); }
+  .mon-item span { color: var(--muted); font-family: "SF Mono", ui-monospace, Menlo, monospace; }
+  .mon-item:hover { background: rgba(255,255,255,.06); }
   .mon-empty { color: var(--muted); font-size: 12px; padding: 16px 10px; text-align: center; }
   .mon-list-box { max-height: 360px; overflow: auto; margin-top: 4px; }
   @media (max-width: 640px) {
@@ -109,26 +159,30 @@ $default_tab = 'dashboard';
     .header-inner { flex-direction: column; align-items: flex-start; }
   }
   .hidden { display: none !important; }
-  #toast { position: fixed; bottom: 20px; right: 20px; background: var(--primary); color: #fff; padding: 10px 16px; border-radius: 8px; font-size: 12px; font-weight: 600; box-shadow: 0 10px 25px rgba(0,0,0,0.5); z-index: 99; transition: opacity 0.3s; }
+  #toast { position: fixed; bottom: 22px; right: 22px; background: rgba(28,28,36,.9); color: #fff; padding: 11px 18px; border-radius: 12px; font-size: 12.5px; font-weight: 600; box-shadow: 0 16px 40px rgba(0,0,0,.6), inset 0 1px 0 rgba(255,255,255,.12); border: 1px solid rgba(255,255,255,.1); backdrop-filter: blur(20px); z-index: 99; transition: opacity 0.3s; }
   
-  .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.75); backdrop-filter: blur(2px); display: flex; justify-content: center; align-items: center; z-index: 100; }
-  .modal-card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 24px; width: 100%; max-width: 420px; box-shadow: 0 20px 40px rgba(0,0,0,0.6); }
-  .modal-card-lg { max-width: 760px; }
+  .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,.6); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); display: flex; justify-content: center; align-items: center; z-index: 100; }
+  .modal-card {
+    background: linear-gradient(180deg, rgba(44,44,54,.92), rgba(20,20,26,.95));
+    border: 1px solid rgba(255,255,255,.12); border-radius: 18px; padding: 24px; width: 100%; max-width: 440px;
+    box-shadow: 0 30px 80px rgba(0,0,0,.7), inset 0 1px 0 rgba(255,255,255,.1);
+  }
+  .modal-card-lg { max-width: 780px; }
   .term {
-    background: #04110c; border: 1px solid #166534; border-radius: 10px;
-    color: #86efac; font-family: Consolas, Menlo, monospace; font-size: 12.5px;
+    background: rgba(0,0,0,.55); border: 1px solid rgba(48,209,88,.3); border-radius: 12px;
+    color: #63e6a5; font-family: "SF Mono", ui-monospace, Menlo, monospace; font-size: 12.5px;
     line-height: 1.65; padding: 14px 16px; margin: 0;
     max-height: 440px; overflow: auto; white-space: pre; min-height: 60px;
-    box-shadow: inset 0 0 30px rgba(16, 185, 129, 0.06);
+    box-shadow: inset 0 0 30px rgba(48,209,88,.05);
   }
   .term::-webkit-scrollbar { width: 10px; height: 10px; }
-  .term::-webkit-scrollbar-track { background: #071412; }
-  .term::-webkit-scrollbar-thumb { background: #14532d; border-radius: 6px; }
-  .term-loading::after { content: ''; display:inline-block; width:8px; height:14px; margin-left:4px; background:#86efac; animation: blink 1s steps(1) infinite; vertical-align:-2px; }
+  .term::-webkit-scrollbar-track { background: rgba(0,0,0,.3); }
+  .term::-webkit-scrollbar-thumb { background: rgba(48,209,88,.35); border-radius: 6px; }
+  .term-loading::after { content: ''; display:inline-block; width:8px; height:14px; margin-left:4px; background:#63e6a5; animation: blink 1s steps(1) infinite; vertical-align:-2px; }
   @keyframes blink { 50% { opacity: 0; } }
   .term-title-pill {
-    font-size: 11px; font-family: monospace; background: rgba(6, 182, 212, 0.15);
-    color: #67e8f9; border: 1px solid rgba(6, 182, 212, 0.35); padding: 2px 10px;
+    font-size: 11px; font-family: "SF Mono", ui-monospace, Menlo, monospace; background: rgba(100,210,255,.14);
+    color: #7dd4ff; border: 1px solid rgba(100,210,255,.35); padding: 2px 10px;
     border-radius: 99px; letter-spacing: 0.5px;
   }
 
@@ -136,127 +190,190 @@ $default_tab = 'dashboard';
   <?php if (!$is_admin): ?>  .admin-only { display: none !important; }<?php endif; ?>
   <?php endif; ?>
 
-  /* ===== POLISH: depth, gradient & glass (bukan flat) ===== */
-  body { background:
-    radial-gradient(1100px 560px at 88% -8%, rgba(99,102,241,.16), transparent 60%),
-    radial-gradient(900px 480px at -8% 110%, rgba(6,182,212,.12), transparent 60%),
-    radial-gradient(700px 380px at 55% 120%, rgba(16,185,129,.08), transparent 60%),
-    #020617;
-  }
-  header { background: linear-gradient(180deg, rgba(17,24,39,.94), rgba(10,14,26,.88)); border-bottom: 1px solid rgba(99,102,241,.4); box-shadow: 0 8px 24px rgba(0,0,0,.45); backdrop-filter: blur(10px); }
-  .card { background: linear-gradient(180deg, rgba(34,45,66,.55), rgba(15,23,42,.78)); box-shadow: 0 10px 26px rgba(0,0,0,.32), inset 0 1px 0 rgba(255,255,255,.04); border: 1px solid rgba(148,163,184,.16); }
-  .stats-grid .card, .quick-grid .btn { background: linear-gradient(180deg, rgba(34,45,66,.72), rgba(15,23,42,.86)); }
-  .card-header { border-bottom: 1px solid rgba(148,163,184,.12); }
-  .tabs { background: rgba(15,23,42,.55); box-shadow: inset 0 1px 0 rgba(255,255,255,.04); }
-  .tab-btn { border: 1px solid transparent; transition: .15s; }
-  .tab-btn:hover { background: rgba(99,102,241,.16); }
-  .tab-btn.active { background: linear-gradient(180deg, #6366f1, #4338ca); border-color: rgba(129,140,248,.65); box-shadow: 0 4px 14px rgba(79,70,229,.45), inset 0 1px 0 rgba(255,255,255,.15); }
-  .btn { border: 1px solid rgba(255,255,255,.07); box-shadow: 0 4px 12px rgba(0,0,0,.25), inset 0 1px 0 rgba(255,255,255,.08); transition: transform .12s, filter .15s, box-shadow .15s; }
-  .btn:hover { transform: translateY(-1px); box-shadow: 0 8px 18px rgba(0,0,0,.38); }
-  .btn:active { transform: translateY(0); }
-  .btn-emerald { background: linear-gradient(180deg, #10b981, #059669); }
-  .btn-amber { background: linear-gradient(180deg, #f59e0b, #d97706); }
-  .btn-rose { background: linear-gradient(180deg, #fb7185, #e11d48); color: #fff; }
-  .btn-muted { background: linear-gradient(180deg, #1e293b, #0f172a); }
-  .btn-outline-primary { background: rgba(79,70,229,.14); }
-  input, select, textarea { background: rgba(30,41,59,.8); box-shadow: inset 0 1px 3px rgba(0,0,0,.35); }
-  input:focus, select:focus, textarea:focus { border-color: #6366f1; box-shadow: 0 0 0 3px rgba(99,102,241,.28), inset 0 1px 3px rgba(0,0,0,.35); }
-  th { background: linear-gradient(180deg, #1e293b, #172235); border-bottom: 1px solid rgba(99,102,241,.28); }
-  .stat-val { text-shadow: 0 2px 18px rgba(99,102,241,.45); }
-  .badge { box-shadow: inset 0 -2px 6px rgba(0,0,0,.18); }
-  .modal-card { background: linear-gradient(180deg, #17203a, #0d1428); border: 1px solid rgba(99,102,241,.4); box-shadow: 0 30px 70px rgba(0,0,0,.6); }
-  .quick-grid .btn { border-radius: 12px; }
+  /* ===== APPLE POLISH: depth, frosted glass & vibrancy ===== */
+  header { border-bottom: 1px solid rgba(255,255,255,.08); }
+  .stats-grid .card { background: linear-gradient(180deg, rgba(40,40,50,.7), rgba(22,22,28,.82)); }
+  .tab-btn.active { background: rgba(10,132,255,.92); }
+  .card-header { border-bottom: 1px solid rgba(255,255,255,.08); }
+  .btn { border: 1px solid rgba(255,255,255,.06); }
+  .alert-ok { border-left: 4px solid #30D158; }
+  .alert-warn { border-left: 4px solid #FF9F0A; }
   ::-webkit-scrollbar { width: 10px; height: 10px; }
-  ::-webkit-scrollbar-track { background: #0b1120; }
-  ::-webkit-scrollbar-thumb { background: #2b3a52; border-radius: 6px; border: 2px solid #0b1120; }
-  ::-webkit-scrollbar-thumb:hover { background: #3b4d6b; }
-  .alert-ok { border-left: 4px solid #10b981; }
-  .alert-warn { border-left: 4px solid #f59e0b; }
+  ::-webkit-scrollbar-track { background: rgba(0,0,0,.3); }
+  ::-webkit-scrollbar-thumb { background: rgba(255,255,255,.18); border-radius: 6px; border: 2px solid rgba(0,0,0,.4); }
+  ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,.28); }
+
+  /* ===== APP SHELL: SIDEBAR + TOPBAR ala macOS ===== */
+  .app-shell { display: flex; min-height: 100vh; }
+  .sidebar {
+    width: 240px; flex-shrink: 0; position: sticky; top: 0; height: 100vh;
+    background: rgba(18,18,24,.6);
+    backdrop-filter: blur(30px) saturate(180%);
+    -webkit-backdrop-filter: blur(30px) saturate(180%);
+    border-right: 1px solid rgba(255,255,255,.08);
+    display: flex; flex-direction: column; padding: 16px 12px; z-index: 40;
+  }
+  .sidebar-head { display: flex; align-items: center; gap: 10px; padding: 4px 8px 16px; border-bottom: 1px solid rgba(255,255,255,.07); }
+  .sidebar-title { font-size: 14px; font-weight: 800; letter-spacing: .3px; }
+  .sidebar-sub { font-size: 10.5px; color: var(--muted); }
+  .sidebar-section { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); padding: 16px 10px 6px; }
+  .sidebar-nav { display: flex; flex-direction: column; gap: 2px; overflow-y: auto; flex: 1; padding-bottom: 10px; }
+  .nav-item {
+    display: flex; align-items: center; gap: 11px; width: 100%;
+    padding: 9px 11px; border: none; border-radius: 9px; cursor: pointer;
+    background: transparent; color: #d0d0da; font-size: 13px; font-weight: 600;
+    text-align: left; transition: background .15s, color .15s; font-family: inherit;
+  }
+  .nav-item i { width: 18px; text-align: center; font-size: 14px; color: var(--muted); transition: color .15s; }
+  .nav-item:hover { background: rgba(255,255,255,.07); color: #fff; }
+  .nav-item.active { background: rgba(10,132,255,.9); color: #fff; box-shadow: 0 3px 12px rgba(10,132,255,.35); }
+  .nav-item.active i { color: #fff; }
+  .nav-item.logout { color: #ff8d86; margin-top: 4px; }
+  .nav-item.logout:hover { background: rgba(255,69,58,.14); color: #ff8d86; }
+  .sidebar-foot { border-top: 1px solid rgba(255,255,255,.07); padding-top: 12px; }
+  .user-box { display: flex; align-items: center; gap: 10px; padding: 4px 8px 12px; }
+  .avatar {
+    width: 34px; height: 34px; border-radius: 50%; flex-shrink: 0;
+    background: linear-gradient(180deg, #0A84FF, #0060df); color: #fff;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px; font-weight: 800; box-shadow: 0 3px 10px rgba(10,132,255,.4);
+  }
+  .main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+  .topbar {
+    display: flex; align-items: center; gap: 14px;
+    padding: 12px 24px; position: sticky; top: 0; z-index: 30;
+    background: rgba(18,18,24,.5);
+    backdrop-filter: blur(24px) saturate(180%);
+    -webkit-backdrop-filter: blur(24px) saturate(180%);
+    border-bottom: 1px solid rgba(255,255,255,.08);
+  }
+  .topbar-title { font-size: 15px; font-weight: 800; letter-spacing: .2px; }
+  .topbar-actions { margin-left: auto; display: flex; align-items: center; gap: 10px; }
+  .icon-btn {
+    width: 34px; height: 34px; border-radius: 9px; border: 1px solid rgba(255,255,255,.1);
+    background: rgba(255,255,255,.07); color: #e5e5ea; cursor: pointer; font-size: 14px;
+    display: none; align-items: center; justify-content: center;
+  }
+  .sidebar-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,.5); z-index: 39; display: none; }
+  .sidebar-open .sidebar-backdrop { display: block; }
+  .container { max-width: 1320px; margin: 0 auto; padding: 24px 24px 40px; width: 100%; }
+  @media (max-width: 900px) {
+    .sidebar { position: fixed; left: -260px; transition: left .25s ease; }
+    .sidebar-open .sidebar { left: 0; }
+    .icon-btn { display: flex; }
+    .topbar .traffic { display: none; }
+  }
+  @media (max-width: 640px) { .container { padding: 14px 12px 40px; } }
 </style>
 <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" media="print" onload="this.media='all'">
 <noscript><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"></noscript>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 </head>
 <body>
 
-<header>
-  <div class="header-inner">
-    <div class="brand">
-      <div class="logo"><svg viewBox="0 0 64 64" width="26" height="26" aria-hidden="true"><defs><linearGradient id="snLogo" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#8b5cf6"/><stop offset=".55" stop-color="#6366f1"/><stop offset="1" stop-color="#06b6d4"/></linearGradient></defs><circle cx="32" cy="32" r="24" fill="none" stroke="url(#snLogo)" stroke-width="1.6" opacity=".55"/><g stroke="url(#snLogo)" stroke-width="2.4" stroke-linecap="round"><line x1="32" y1="8" x2="32" y2="20"/><line x1="32" y1="44" x2="32" y2="56"/><line x1="8" y1="32" x2="20" y2="32"/><line x1="44" y1="32" x2="56" y2="32"/></g><g fill="#22d3ee"><circle cx="56" cy="32" r="3.2"/><circle cx="32" cy="8" r="3.2"/><circle cx="8" cy="32" r="3.2"/><circle cx="32" cy="56" r="3.2"/></g><g fill="#a5b4fc"><circle cx="46" cy="18" r="2.6"/><circle cx="18" cy="18" r="2.6"/><circle cx="18" cy="46" r="2.6"/><circle cx="46" cy="46" r="2.6"/></g><circle cx="32" cy="32" r="11" fill="url(#snLogo)"/><circle cx="28.5" cy="28.5" r="4" fill="#fff" opacity=".92"/></svg></div>
+<div class="app-shell">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-head">
+      <div class="logo"><svg viewBox="0 0 64 64" width="24" height="24" aria-hidden="true"><defs><linearGradient id="snLogo" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#64D2FF"/><stop offset=".55" stop-color="#0A84FF"/><stop offset="1" stop-color="#BF5AF2"/></linearGradient></defs><circle cx="32" cy="32" r="24" fill="none" stroke="url(#snLogo)" stroke-width="1.6" opacity=".55"/><g stroke="url(#snLogo)" stroke-width="2.4" stroke-linecap="round"><line x1="32" y1="8" x2="32" y2="20"/><line x1="32" y1="44" x2="32" y2="56"/><line x1="8" y1="32" x2="20" y2="32"/><line x1="44" y1="32" x2="56" y2="32"/></g><g fill="#64D2FF"><circle cx="56" cy="32" r="3.2"/><circle cx="32" cy="8" r="3.2"/><circle cx="8" cy="32" r="3.2"/><circle cx="32" cy="56" r="3.2"/></g><g fill="#c9c9d6"><circle cx="46" cy="18" r="2.6"/><circle cx="18" cy="18" r="2.6"/><circle cx="18" cy="46" r="2.6"/><circle cx="46" cy="46" r="2.6"/></g><circle cx="32" cy="32" r="11" fill="url(#snLogo)"/><circle cx="28.5" cy="28.5" r="4" fill="#fff" opacity=".92"/></svg></div>
       <div>
-        <div style="font-weight:700; font-size:16px;">
-          SUPERNOVA <span class="badge">ZTE C320</span>
-        </div>
-        <div style="font-size:11px; color:var(--muted);">
-          Logged in as: <b style="color:#6ee7b7"><?php echo $_SESSION['username']; ?></b> 
-          (<span style="color:#fcd34d"><?php echo strtoupper($_SESSION['role']); ?></span>)
-        </div>
+        <div class="sidebar-title">SUPERNOVA</div>
+        <div class="sidebar-sub">ZTE C320 · OLT</div>
       </div>
     </div>
-    <div class="tabs">
-      <button id="tab-dashboard" class="tab-btn<?php echo $default_tab === 'dashboard' ? ' active' : ''; ?>" onclick="switchTab('dashboard')"><i class="fa-solid fa-gauge-high"></i> Dashboard</button>
+    <div class="sidebar-section">Menu</div>
+    <nav class="sidebar-nav">
+      <button id="tab-dashboard" class="nav-item<?php echo $default_tab === 'dashboard' ? ' active' : ''; ?>" onclick="switchTab('dashboard')"><i class="fa-solid fa-gauge-high"></i> Dashboard</button>
       <?php if ($is_admin): ?>
-      <button id="tab-broadband" class="tab-btn<?php echo $default_tab === 'broadband' ? ' active' : ''; ?>" onclick="switchTab('broadband')">Broadband</button>
-      <button id="tab-mikrotik" class="tab-btn" onclick="switchTab('mikrotik')"><i class="fa-solid fa-network-wired"></i> MikroTik PPPoE</button>
+      <button id="tab-broadband" class="nav-item<?php echo $default_tab === 'broadband' ? ' active' : ''; ?>" onclick="switchTab('broadband')"><i class="fa-solid fa-tower-broadcast"></i> Broadband</button>
+      <button id="tab-mikrotik" class="nav-item" onclick="switchTab('mikrotik')"><i class="fa-solid fa-network-wired"></i> MikroTik PPPoE</button>
       <?php endif; ?>
-      <button id="tab-pelanggan" class="tab-btn" onclick="switchTab('pelanggan')">Pelanggan (<span id="badge-count">0</span>)</button>
-      <button id="tab-monitoring" class="tab-btn" onclick="switchTab('monitoring')"><i class="fa-solid fa-signal"></i> Monitoring</button>
+      <button id="tab-pelanggan" class="nav-item" onclick="switchTab('pelanggan')"><i class="fa-solid fa-users"></i> Pelanggan <span class="chip" style="margin-left:auto; padding:1px 7px;" id="badge-count">0</span></button>
+      <button id="tab-monitoring" class="nav-item" onclick="switchTab('monitoring')"><i class="fa-solid fa-signal"></i> Monitoring</button>
       <?php if ($_SESSION['role'] === 'admin'): ?>
-      <button id="tab-admin" class="tab-btn" onclick="switchTab('admin')"><i class="fa-solid fa-users"></i> Kelola Admin</button>
+      <button id="tab-admin" class="nav-item" onclick="switchTab('admin')"><i class="fa-solid fa-gear"></i> Kelola Admin</button>
       <?php endif; ?>
-      
-      <a href="logout.php" style="text-decoration: none;">
-        <button class="tab-btn" style="color: #fda4af; border-left: 1px solid #334155; border-radius: 0 6px 6px 0; margin-left: 4px;">
-          <i class="fa-solid fa-power-off"></i> Keluar
-        </button>
-      </a>
+    </nav>
+    <div class="sidebar-foot">
+      <div class="user-box">
+        <div class="avatar"><?php echo strtoupper(substr(trim($_SESSION['username']), 0, 2)); ?></div>
+        <div style="min-width:0;">
+          <div style="font-size:13px; font-weight:700; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;"><?php echo htmlspecialchars($_SESSION['username']); ?></div>
+          <div style="font-size:10.5px; color:var(--muted); text-transform:uppercase;"><?php echo htmlspecialchars($_SESSION['role']); ?></div>
+        </div>
+      </div>
+      <a href="logout.php" style="text-decoration:none;"><button class="nav-item logout"><i class="fa-solid fa-power-off"></i> Keluar</button></a>
     </div>
-  </div>
-</header>
+  </aside>
+  <div class="sidebar-backdrop" onclick="toggleSidebar()"></div>
+
+  <!-- MAIN -->
+  <div class="main">
+    <header class="topbar">
+      <button class="icon-btn" onclick="toggleSidebar()" aria-label="Menu"><i class="fa-solid fa-bars"></i></button>
+      <div class="traffic" title="Supernova"><i class="t-red"></i><i class="t-yel"></i><i class="t-grn"></i></div>
+      <div class="topbar-title" id="topbar-title">Dashboard</div>
+      <div class="topbar-actions">
+        <span class="chip" style="color:#63e6a5; border-color:rgba(48,209,88,.35); background:rgba(48,209,88,.1);"><i class="fa-solid fa-circle" style="font-size:8px;"></i> Live</span>
+        <button class="btn btn-sm btn-amber" onclick="loadDashboardRealtime()"><i class="fa-solid fa-rotate"></i> Segarkan</button>
+      </div>
+    </header>
 
 <div class="container">
 
   <!-- TAB 0: DASHBOARD -->
   <div id="view-dashboard" class="<?php echo $default_tab === 'dashboard' ? '' : 'hidden'; ?>">
     <div class="stats-grid">
-      <div class="card" style="margin:0"><div style="font-size:11px; color:var(--muted)">Total Pelanggan</div><div id="dash-total" class="stat-val"><div class="skel" style="width:45%"></div></div></div>
-      <div class="card" style="margin:0"><div style="font-size:11px; color:var(--muted)">Aktif</div><div id="dash-aktif" class="stat-val" style="color:#34d399"><div class="skel" style="width:45%"></div></div></div>
-      <div class="card" style="margin:0"><div style="font-size:11px; color:var(--muted)">Isolir</div><div id="dash-isolir" class="stat-val" style="color:#fbbf24"><div class="skel" style="width:45%"></div></div></div>
-      <div class="card" style="margin:0"><div style="font-size:11px; color:var(--muted)">Cabut / Nonaktif</div><div id="dash-cabut" class="stat-val" style="color:#fda4af"><div class="skel" style="width:45%"></div></div></div>
-      <div class="card" style="margin:0; border-color:#0d9488;"><div style="font-size:11px; color:var(--muted)"><i class="fa-solid fa-wifi"></i> Online</div><div id="dash-mon-online" class="stat-val" style="color:#34d399"><div class="skel" style="width:45%"></div></div></div>
-      <div class="card" style="margin:0;"><div style="font-size:11px; color:var(--muted)"><i class="fa-solid fa-wifi-slash"></i> Offline</div><div id="dash-mon-offline" class="stat-val" style="color:#fbbf24"><div class="skel" style="width:45%"></div></div></div>
+      <div class="card" style="margin:0"><div style="display:flex; align-items:center; gap:8px; margin-bottom:8px;"><span style="width:28px; height:28px; border-radius:8px; display:flex; align-items:center; justify-content:center; background:rgba(10,132,255,.16); color:#64D2FF;"><i class="fa-solid fa-users" style="font-size:13px;"></i></span><div style="font-size:11px; color:var(--muted)">Total Pelanggan</div></div><div id="dash-total" class="stat-val"><div class="skel" style="width:45%"></div></div></div>
+      <div class="card" style="margin:0"><div style="display:flex; align-items:center; gap:8px; margin-bottom:8px;"><span style="width:28px; height:28px; border-radius:8px; display:flex; align-items:center; justify-content:center; background:rgba(48,209,88,.16); color:#63e6a5;"><i class="fa-solid fa-circle-check" style="font-size:13px;"></i></span><div style="font-size:11px; color:var(--muted)">Aktif</div></div><div id="dash-aktif" class="stat-val" style="color:#63e6a5"><div class="skel" style="width:45%"></div></div></div>
+      <div class="card" style="margin:0"><div style="display:flex; align-items:center; gap:8px; margin-bottom:8px;"><span style="width:28px; height:28px; border-radius:8px; display:flex; align-items:center; justify-content:center; background:rgba(255,159,10,.16); color:#ffc15e;"><i class="fa-solid fa-ban" style="font-size:13px;"></i></span><div style="font-size:11px; color:var(--muted)">Isolir</div></div><div id="dash-isolir" class="stat-val" style="color:#ffc15e"><div class="skel" style="width:45%"></div></div></div>
+      <div class="card" style="margin:0"><div style="display:flex; align-items:center; gap:8px; margin-bottom:8px;"><span style="width:28px; height:28px; border-radius:8px; display:flex; align-items:center; justify-content:center; background:rgba(255,69,58,.16); color:#ff8d86;"><i class="fa-solid fa-power-off" style="font-size:13px;"></i></span><div style="font-size:11px; color:var(--muted)">Cabut / Nonaktif</div></div><div id="dash-cabut" class="stat-val" style="color:#ff8d86"><div class="skel" style="width:45%"></div></div></div>
+      <div class="card" style="margin:0"><div style="display:flex; align-items:center; gap:8px; margin-bottom:8px;"><span style="width:28px; height:28px; border-radius:8px; display:flex; align-items:center; justify-content:center; background:rgba(48,209,88,.16); color:#63e6a5;"><i class="fa-solid fa-wifi" style="font-size:13px;"></i></span><div style="font-size:11px; color:var(--muted)">Online</div></div><div id="dash-mon-online" class="stat-val" style="color:#63e6a5"><div class="skel" style="width:45%"></div></div></div>
+      <div class="card" style="margin:0;"><div style="display:flex; align-items:center; gap:8px; margin-bottom:8px;"><span style="width:28px; height:28px; border-radius:8px; display:flex; align-items:center; justify-content:center; background:rgba(255,159,10,.16); color:#ffc15e;"><i class="fa-solid fa-wifi-slash" style="font-size:13px;"></i></span><div style="font-size:11px; color:var(--muted)">Offline</div></div><div id="dash-mon-offline" class="stat-val" style="color:#ffc15e"><div class="skel" style="width:45%"></div></div></div>
     </div>
 
     <div style="display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin-bottom:12px; font-size:12px; color:var(--muted);">
       <span><i class="fa-solid fa-rotate"></i> <span id="dash-mon-ts">memuat...</span></span>
       <button class="btn btn-sm btn-amber" id="dash-refresh-btn" onclick="loadDashboardRealtime()"><i class="fa-solid fa-rotate"></i> Segarkan Status</button>
-      <span id="dash-mon-err" class="hidden" style="color:#fda4af;"></span>
+      <span id="dash-mon-err" class="hidden" style="color:#ff8d86;"></span>
     </div>
 
     <div class="card" style="margin-bottom:16px;">
       <div class="card-header"><span class="card-title">Komposisi Status</span></div>
       <div style="display:flex; gap:8px; margin-bottom:14px;">
-        <div class="bar-track" style="flex:2"><div class="bar-fill" id="bar-aktif" style="width:0; background:#10b981;"></div></div>
-        <div class="bar-track" style="flex:1"><div class="bar-fill" id="bar-isolir" style="width:0; background:#f59e0b;"></div></div>
-        <div class="bar-track" style="flex:1"><div class="bar-fill" id="bar-cabut" style="width:0; background:#f43f5e;"></div></div>
+        <div class="bar-track" style="flex:2"><div class="bar-fill" id="bar-aktif" style="width:0; background:linear-gradient(90deg,#30D158,#248a3d);"></div></div>
+        <div class="bar-track" style="flex:1"><div class="bar-fill" id="bar-isolir" style="width:0; background:linear-gradient(90deg,#FF9F0A,#b36e00);"></div></div>
+        <div class="bar-track" style="flex:1"><div class="bar-fill" id="bar-cabut" style="width:0; background:linear-gradient(90deg,#FF453A,#b52a22);"></div></div>
       </div>
       <div style="display:flex; gap:20px; flex-wrap:wrap; font-size:12px; color:var(--muted);">
-        <span><span style="color:#34d399;">■</span> <span id="lbl-aktif">Aktif 0</span></span>
-        <span><span style="color:#fbbf24;">■</span> <span id="lbl-isolir">Isolir 0</span></span>
-        <span><span style="color:#fda4af;">■</span> <span id="lbl-cabut">Cabut 0</span></span>
-        <span style="color:var(--muted)">Port OLT terisi: <b id="dash-port" style="color:#a5b4fc">0</b></span>
+        <span><span style="color:#63e6a5;">■</span> <span id="lbl-aktif">Aktif 0</span></span>
+        <span><span style="color:#ffc15e;">■</span> <span id="lbl-isolir">Isolir 0</span></span>
+        <span><span style="color:#ff8d86;">■</span> <span id="lbl-cabut">Cabut 0</span></span>
+        <span style="color:var(--muted)">Port OLT terisi: <b id="dash-port" style="color:#64D2FF">0</b></span>
       </div>
+    </div>
+
+    <div class="card" style="margin-bottom:16px;">
+      <div class="card-header">
+        <span class="card-title"><i class="fa-solid fa-map-location-dot" style="color:#64D2FF;"></i> Peta Pelanggan</span>
+        <span class="chip" id="dash-map-count">0 titik</span>
+      </div>
+      <div id="dash-map" style="height:400px; border-radius:12px; overflow:hidden; border:1px solid rgba(255,255,255,.1); background:#0a0a0f;"></div>
+      <p class="hint" style="margin:8px 0 0;"><i class="fa-solid fa-circle-info"></i> Menampilkan pelanggan yang sudah diisi koordinat latitude/longitude (tombol <b>Detail</b> di menu Pelanggan untuk menunjuk lokasi).</p>
     </div>
 
     <div class="card">
       <div class="card-header"><span class="card-title">Aksi Cepat</span></div>
       <div class="quick-grid">
-        <button class="btn" style="padding:16px; background:#0f172a; border:1px solid #10b981; color:#6ee7b7;" onclick="switchTab('monitoring')"><i class="fa-solid fa-signal"></i><br>Monitoring Online/Offline</button>
-        <button class="btn" style="padding:16px; background:#0f172a; border:1px solid #f59e0b; color:#fcd34d;" onclick="scanOfflineONU()"><i class="fa-solid fa-magnifying-glass"></i><br>Scan ONU Offline / LOS</button>
-        <button class="btn" style="padding:16px; background:#0f172a; border:1px solid #a5b4fc; color:#c7d2fe;" onclick="switchTab('pelanggan')"><i class="fa-solid fa-users"></i><br>Data Pelanggan</button>
+        <button class="btn" style="padding:16px; background:rgba(48,209,88,.14); border:1px solid rgba(48,209,88,.35); color:#63e6a5; border-radius:14px; flex-direction:column; gap:6px;" onclick="switchTab('monitoring')"><i class="fa-solid fa-signal" style="font-size:18px;"></i>Monitoring Online/Offline</button>
+        <button class="btn" style="padding:16px; background:rgba(255,159,10,.14); border:1px solid rgba(255,159,10,.35); color:#ffc15e; border-radius:14px; flex-direction:column; gap:6px;" onclick="scanOfflineONU()"><i class="fa-solid fa-magnifying-glass" style="font-size:18px;"></i>Scan ONU Offline / LOS</button>
+        <button class="btn" style="padding:16px; background:rgba(10,132,255,.14); border:1px solid rgba(10,132,255,.35); color:#64D2FF; border-radius:14px; flex-direction:column; gap:6px;" onclick="switchTab('pelanggan')"><i class="fa-solid fa-users" style="font-size:18px;"></i>Data Pelanggan</button>
         <?php if ($is_admin): ?>
-        <button class="btn" style="padding:16px; background:#0f172a; border:1px solid #f43f5e; color:#fda4af;" onclick="window.open('api.php?action=backup_db','_blank')"><i class="fa-solid fa-download"></i><br>Backup Database</button>
-        <button class="btn" style="padding:16px; background:#0f172a; border:1px solid #a78bfa; color:#c4b5fd;" onclick="switchTab('admin')"><i class="fa-solid fa-sliders"></i><br>Pengaturan</button>
+        <button class="btn" style="padding:16px; background:rgba(255,69,58,.14); border:1px solid rgba(255,69,58,.35); color:#ff8d86; border-radius:14px; flex-direction:column; gap:6px;" onclick="window.open('api.php?action=backup_db','_blank')"><i class="fa-solid fa-download" style="font-size:18px;"></i>Backup Database</button>
+        <button class="btn" style="padding:16px; background:rgba(191,90,242,.14); border:1px solid rgba(191,90,242,.35); color:#d9a5f7; border-radius:14px; flex-direction:column; gap:6px;" onclick="switchTab('admin')"><i class="fa-solid fa-sliders" style="font-size:18px;"></i>Pengaturan</button>
         <?php endif; ?>
       </div>
     </div>
@@ -265,11 +382,11 @@ $default_tab = 'dashboard';
       <div class="card-header"><span class="card-title"><i class="fa-solid fa-signal"></i> Status Pelanggan per Kategori</span></div>
       <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(280px, 1fr)); gap:16px;">
         <div>
-          <div class="mon-head" style="color:#34d399;"><i class="fa-solid fa-wifi"></i> Online</div>
+          <div class="mon-head" style="color:#63e6a5;"><i class="fa-solid fa-wifi"></i> Online</div>
           <div class="mon-list-box" id="dash-online-list"></div>
         </div>
         <div>
-          <div class="mon-head" style="color:#fbbf24;"><i class="fa-solid fa-wifi-slash"></i> Offline</div>
+          <div class="mon-head" style="color:#ffc15e;"><i class="fa-solid fa-wifi-slash"></i> Offline</div>
           <div class="mon-list-box" id="dash-offline-list"></div>
         </div>
       </div>
@@ -290,10 +407,10 @@ $default_tab = 'dashboard';
           <div><label>Interface GPON-OLT</label><input type="text" id="bb-iface" value="1/2/4" oninput="checkConflictOnly()"></div>
           <div><label>ONU ID</label><input type="number" id="bb-onu" value="10" oninput="checkConflictOnly()"></div>
           <div id="bb-port-alert" class="col-span-2 alert"></div>
-          <div><label>SN ONT</label><input type="text" id="bb-sn" placeholder="ZTEGD6D940BB" style="color:#fcd34d"></div>
+          <div><label>SN ONT</label><input type="text" id="bb-sn" placeholder="ZTEGD6D940BB" style="color:#ffc15e"></div>
           <div><label>Tipe ONT</label><input type="text" id="bb-type" value="ALL-ONT"></div>
           <div class="col-span-2"><label>Nama Pelanggan (Description)</label><input type="text" id="bb-nama" placeholder="Nama Pelanggan"></div>
-          <div><label>User ID PPPoE</label><input type="text" id="bb-userid" placeholder="121251720115" style="color:#6ee7b7"></div>
+          <div><label>User ID PPPoE</label><input type="text" id="bb-userid" placeholder="121251720115" style="color:#63e6a5"></div>
           <div>
             <label>Domain PPPoE</label>
             <select id="bb-domain">
@@ -334,7 +451,7 @@ $default_tab = 'dashboard';
     
     <div>
       <div class="card">
-        <div class="card-header"><span class="card-title" style="color:#a78bfa">1. CEK ONU UNCONFIG (Cari SN Baru)</span><button class="btn btn-sm" onclick="copyText('out-bb-unconfig')">Copy Script</button></div>
+        <div class="card-header"><span class="card-title" style="color:#BF5AF2">1. CEK ONU UNCONFIG (Cari SN Baru)</span><button class="btn btn-sm" onclick="copyText('out-bb-unconfig')">Copy Script</button></div>
         <pre id="out-bb-unconfig" style="color:#ddd6fe; min-height:40px;">show gpon onu un</pre>
       </div>
       <div class="card">
@@ -347,11 +464,11 @@ $default_tab = 'dashboard';
       </div>
       <div class="card">
         <div class="card-header"><span class="card-title" style="color:#34d399">4. REGISTRASI SN ONT</span><button class="btn btn-sm admin-only" onclick="copyText('out-bb-regis')">Copy Script</button></div>
-        <pre id="out-bb-regis" style="color:#6ee7b7">Klik GENERATE di kiri...</pre>
+        <pre id="out-bb-regis" style="color:#63e6a5">Klik GENERATE di kiri...</pre>
       </div>
       <div class="card">
-        <div class="card-header"><span class="card-title" style="color:#a5b4fc">5. CONFIG LAYANAN PPPoE</span><button class="btn btn-sm admin-only" onclick="copyText('out-bb-service')">Copy Script</button></div>
-        <pre id="out-bb-service" style="color:#c7d2fe">Klik GENERATE di kiri...</pre>
+        <div class="card-header"><span class="card-title" style="color:#64D2FF">5. CONFIG LAYANAN PPPoE</span><button class="btn btn-sm admin-only" onclick="copyText('out-bb-service')">Copy Script</button></div>
+        <pre id="out-bb-service" style="color:#d9a5f7">Klik GENERATE di kiri...</pre>
       </div>
     </div>
   </div>
@@ -359,9 +476,9 @@ $default_tab = 'dashboard';
   <!-- TAB BARU: MIKROTIK PPPOE PROVISIONING -->
   <div id="view-mikrotik" class="hidden">
     <div style="max-width: 600px; margin: 0 auto;">
-      <div class="card" style="border-left: 4px solid #10b981;">
+      <div class="card" style="border-left: 4px solid #30D158;">
         <div class="card-header">
-          <span class="card-title" style="color:#10b981;"><i class="fa-solid fa-network-wired"></i> Tambah Secret PPPoE ke MikroTik (API)</span>
+          <span class="card-title" style="color:#30D158;"><i class="fa-solid fa-network-wired"></i> Tambah Secret PPPoE ke MikroTik (API)</span>
         </div>
         <div class="form-grid">
           <div class="col-span-2">
@@ -411,7 +528,7 @@ $default_tab = 'dashboard';
       <div class="card" style="margin:0"><div style="font-size:11px; color:var(--muted)">Total Pelanggan</div><div id="stat-total" class="stat-val">0</div></div>
       <div class="card" style="margin:0"><div style="font-size:11px; color:var(--muted)">Port OLT Aktif</div><div id="stat-aktif" class="stat-val" style="color:#34d399">0</div></div>
       <div class="card" style="margin:0"><div style="font-size:11px; color:var(--muted)">Status CABUT / Belum Ada</div><div id="stat-cabut" class="stat-val" style="color:#fbbf24">0</div></div>
-      <div class="card" style="margin:0"><div style="font-size:11px; color:var(--muted)">Rata-Rata Paket</div><div id="stat-avg" class="stat-val" style="color:#818cf8">0 Mbps</div></div>
+      <div class="card" style="margin:0"><div style="font-size:11px; color:var(--muted)">Rata-Rata Paket</div><div id="stat-avg" class="stat-val" style="color:#64D2FF">0 Mbps</div></div>
     </div>
 
     <div class="card" style="display:flex; flex-wrap:wrap; gap:10px; justify-content:space-between; align-items:center;">
@@ -566,7 +683,7 @@ $default_tab = 'dashboard';
       <div class="card" style="padding:0; overflow:hidden; min-width:0;">
         <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 14px; border-bottom:1px solid var(--border);">
           <span style="font-weight:700; color:#34d399; font-size:13px;"><i class="fa-solid fa-wifi"></i> Online</span>
-          <span class="badge" style="color:#34d399; border-color:#10b981; background:rgba(16,185,129,.15);" id="mon-online-count">0</span>
+          <span class="badge" style="color:#34d399; border-color:#30D158; background:rgba(16,185,129,.15);" id="mon-online-count">0</span>
         </div>
         <div class="table-scroll">
           <table style="width:100%; table-layout:fixed;">
@@ -586,7 +703,7 @@ $default_tab = 'dashboard';
       <div class="card" style="padding:0; overflow:hidden; min-width:0;">
         <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 14px; border-bottom:1px solid var(--border);">
           <span style="font-weight:700; color:#fbbf24; font-size:13px;"><i class="fa-solid fa-wifi-slash"></i> Offline</span>
-          <span class="badge" style="color:#fcd34d; border-color:#f59e0b; background:rgba(245,158,11,.12);" id="mon-offline-count">0</span>
+          <span class="badge" style="color:#ffc15e; border-color:#FF9F0A; background:rgba(245,158,11,.12);" id="mon-offline-count">0</span>
         </div>
         <div class="table-scroll">
           <table style="width:100%; table-layout:fixed;">
@@ -608,81 +725,32 @@ $default_tab = 'dashboard';
   <?php if ($_SESSION['role'] === 'admin'): ?>
   <div id="view-admin" class="grid-main hidden">
     <div>
-      <!-- Konfigurasi OLT -->
-      <div class="card" style="border-left: 4px solid #06b6d4; margin-bottom:12px;">
-        <div class="card-header"><span class="card-title" style="color:#06b6d4;"><i class="fa-solid fa-server"></i> Koneksi OLT (Telnet)</span></div>
-        <div class="form-grid">
-          <div><label>IP Address OLT</label><input type="text" id="conf-olt-ip"></div>
-          <div><label>Port</label><input type="text" id="conf-olt-port"></div>
-          <div><label>Username OLT</label><input type="text" id="conf-olt-user"></div>
-          <div><label>Password OLT</label><input type="password" id="conf-olt-pass" placeholder="***"></div>
-          <div class="col-span-2"><button class="btn btn-outline-primary" style="width:100%; color:#06b6d4; border-color:#06b6d4;" onclick="saveOltSettings()">Simpan Config OLT</button></div>
-        </div>
-      </div>
-
-      <!-- Konfigurasi MikroTik API (BARU) -->
-      <div class="card" style="border-left: 4px solid #f59e0b; margin-bottom:12px;">
-        <div class="card-header"><span class="card-title" style="color:#f59e0b;"><i class="fa-solid fa-network-wired"></i> Koneksi MikroTik (API)</span></div>
-        <div class="form-grid">
-          <div><label>IP Address MikroTik</label><input type="text" id="conf-mk-ip" placeholder="192.168.88.1"></div>
-          <div><label>Port API (Default: 8728)</label><input type="text" id="conf-mk-port" placeholder="8728"></div>
-          <div><label>Username MikroTik</label><input type="text" id="conf-mk-user" placeholder="admin"></div>
-          <div><label>Password MikroTik</label><input type="password" id="conf-mk-pass" placeholder="***"></div>
-          <div class="col-span-2">
-            <label style="display:flex; align-items:center; gap:8px; margin:0; cursor:pointer;">
-              <input type="checkbox" id="conf-mk-ssl" style="width:auto; cursor:pointer;">
-              Gunakan API SSL (centang jika API memakai TLS / port 8729)
-            </label>
+      <!-- Header + ringkasan -->
+      <div class="card" style="padding:16px 18px; margin-bottom:14px; background:linear-gradient(135deg, rgba(34,45,66,.7), rgba(15,23,42,.85));">
+        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+          <div>
+            <div style="display:flex; align-items:center; gap:10px;">
+              <span style="width:34px; height:34px; border-radius:10px; display:flex; align-items:center; justify-content:center; background:rgba(99,102,241,.16); border:1px solid rgba(99,102,241,.4); color:#64D2FF;"><i class="fa-solid fa-gear"></i></span>
+              <div>
+                <div style="font-size:15px; font-weight:800; color:#fff;">Kelola Admin</div>
+                <div class="hint">Konfigurasi sistem, akun pengguna, dan operasional data.</div>
+              </div>
+            </div>
           </div>
-          <div class="col-span-2"><button class="btn btn-amber" style="width:100%; color:#000;" onclick="saveMikrotikSettings()">Simpan Config MikroTik API</button></div>
-        </div>
-      </div>
-
-      <!-- Notifikasi Telegram -->
-      <div class="card" style="border-left: 4px solid #38bdf8; margin-bottom:12px;">
-        <div class="card-header"><span class="card-title" style="color:#38bdf8;"><i class="fa-solid fa-paper-plane"></i> Notifikasi Telegram</span></div>
-        <div class="form-grid">
-          <div class="col-span-2"><label>Bot Token</label><input type="password" id="conf-tg-token" placeholder="123456:ABC-xyz..." autocomplete="off"></div>
-          <div class="col-span-2"><label>Chat ID</label><input type="text" id="conf-tg-chat" placeholder="-1001234567890" autocomplete="off"></div>
-          <div class="col-span-2"><button class="btn btn-outline-primary" style="width:100%; color:#38bdf8; border-color:#38bdf8;" onclick="saveTelegramSettings()">Simpan Config Telegram</button></div>
-        </div>
-      </div>
-
-      <!-- Tambah User Admin -->
-      <div class="card" style="border-left: 4px solid #10b981;">
-        <div class="card-header"><span class="card-title" style="color:#10b981;"><i class="fa-solid fa-user-plus"></i> Tambah User Aplikasi</span></div>
-        <div class="form-grid">
-          <div class="col-span-2"><label>Username</label><input type="text" id="admin-username" placeholder="Username baru..." autocomplete="off"></div>
-          <div class="col-span-2"><label>Password</label><input type="password" id="admin-password" placeholder="Password..." autocomplete="off"></div>
-          <div class="col-span-2">
-            <label>Role Akses</label>
-            <select id="admin-role">
-              <option value="admin">Admin (Full Akses)</option>
-              <option value="readonly" selected>Read-Only (Hanya Lihat)</option>
-            </select>
+          <div style="display:flex; gap:8px; flex-wrap:wrap;">
+            <span class="chip" style="color:#34d399; border-color:rgba(16,185,129,.35); background:rgba(16,185,129,.1);"><i class="fa-solid fa-user-gear"></i> <span id="admin-count-chip">0</span> Akun</span>
+            <span class="chip" style="color:#38bdf8; border-color:rgba(56,189,248,.35); background:rgba(56,189,248,.1);"><i class="fa-solid fa-paper-plane"></i> Notifikasi TG</span>
           </div>
-          <div class="col-span-2"><button class="btn btn-emerald" style="width:100%; padding:10px;" onclick="saveUserDB()">Tambah Akun</button></div>
         </div>
       </div>
 
-      <!-- Operasional Data -->
-      <div class="card" style="border-left: 4px solid #a78bfa; margin-bottom:12px;">
-        <div class="card-header"><span class="card-title" style="color:#a78bfa;"><i class="fa-solid fa-database"></i> Operasional Data</span></div>
-        <div style="display:flex; flex-wrap:wrap; gap:8px;">
-          <button class="btn btn-sm btn-emerald" onclick="window.open('api.php?action=backup_db','_blank')"><i class="fa-solid fa-download"></i> Backup Database</button>
-          <button class="btn btn-sm btn-rose" onclick="clearAudit()"><i class="fa-solid fa-trash"></i> Bersihkan Log</button>
-        </div>
-        <div style="margin-top:10px;">
-          <label>Import Pelanggan (format per baris: nama;pakeet;sn;idpppoe;port)</label>
-          <textarea id="import-text" rows="4" style="font-family:monospace; font-size:12px;" placeholder="Contoh:&#10;MAWAR SEJATI;50;ZTEGD6D940BB;121251720200@supernovanet;1/2/7:18"></textarea>
-          <button class="btn btn-sm btn-amber" style="width:100%; color:#000;" onclick="importCustomers()"><i class="fa-solid fa-file-import"></i> Import Data</button>
-        </div>
-      </div>
-    </div>
-    
-    <div>
+      <!-- Daftar Akun (paling atas) -->
       <div class="card" style="padding:0; overflow:hidden; margin-bottom:14px;">
-        <div style="max-height:600px; overflow-y:auto;">
+        <div style="display:flex; justify-content:space-between; align-items:center; padding:12px 14px; border-bottom:1px solid var(--border);">
+          <span class="card-title" style="margin:0; color:#63e6a5;"><i class="fa-solid fa-users"></i> Daftar Akun</span>
+          <span class="chip" id="users-count-chip">0</span>
+        </div>
+        <div style="max-height:340px; overflow-y:auto;">
           <table>
             <thead><tr><th>Username</th><th>Role Akses</th><th style="text-align:right">Aksi</th></tr></thead>
             <tbody id="users-tbody"></tbody>
@@ -690,10 +758,87 @@ $default_tab = 'dashboard';
         </div>
       </div>
 
+      <!-- Koneksi Perangkat -->
+      <div class="sec-label"><i class="fa-solid fa-plug"></i> Koneksi Perangkat</div>
+      <div class="two-col" style="margin-bottom:16px;">
+        <div class="card" style="border-left: 4px solid #06b6d4; margin-bottom:0;">
+          <div class="card-header"><span class="card-title" style="color:#06b6d4;"><i class="fa-solid fa-server"></i> Koneksi OLT (Telnet)</span></div>
+          <div class="form-grid">
+            <div><label>IP Address OLT</label><input type="text" id="conf-olt-ip" placeholder="192.168.1.10"></div>
+            <div><label>Port</label><input type="text" id="conf-olt-port" placeholder="23"></div>
+            <div><label>Username OLT</label><input type="text" id="conf-olt-user" placeholder="admin"></div>
+            <div><label>Password OLT</label><input type="password" id="conf-olt-pass" placeholder="***"></div>
+            <div class="col-span-2"><button class="btn btn-outline-primary" style="width:100%; color:#06b6d4; border-color:#06b6d4;" onclick="saveOltSettings()"><i class="fa-solid fa-floppy-disk"></i> Simpan Config OLT</button></div>
+          </div>
+        </div>
+
+        <div class="card" style="border-left: 4px solid #FF9F0A; margin-bottom:0;">
+          <div class="card-header"><span class="card-title" style="color:#FF9F0A;"><i class="fa-solid fa-network-wired"></i> Koneksi MikroTik (API)</span></div>
+          <div class="form-grid">
+            <div><label>IP Address MikroTik</label><input type="text" id="conf-mk-ip" placeholder="192.168.88.1"></div>
+            <div><label>Port API (Default: 8728)</label><input type="text" id="conf-mk-port" placeholder="8728"></div>
+            <div><label>Username MikroTik</label><input type="text" id="conf-mk-user" placeholder="admin"></div>
+            <div><label>Password MikroTik</label><input type="password" id="conf-mk-pass" placeholder="***"></div>
+            <div class="col-span-2">
+              <label style="display:flex; align-items:center; gap:8px; margin:0; cursor:pointer;">
+                <input type="checkbox" id="conf-mk-ssl" style="width:auto; cursor:pointer;">
+                Gunakan API SSL (centang jika API memakai TLS / port 8729)
+              </label>
+            </div>
+            <div class="col-span-2"><button class="btn btn-amber" style="width:100%; color:#000;" onclick="saveMikrotikSettings()"><i class="fa-solid fa-floppy-disk"></i> Simpan Config MikroTik API</button></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Notifikasi Telegram -->
+      <div class="card" style="border-left: 4px solid #38bdf8; margin-bottom:16px;">
+        <div class="card-header">
+          <span class="card-title" style="color:#38bdf8;"><i class="fa-solid fa-paper-plane"></i> Notifikasi Telegram</span>
+          <span class="chip" style="color:#34d399; border-color:rgba(16,185,129,.35); background:rgba(16,185,129,.1);"><i class="fa-solid fa-circle" style="font-size:8px;"></i> Aktif</span>
+        </div>
+        <div class="form-grid">
+          <div class="col-span-2"><label>Bot Token</label><input type="password" id="conf-tg-token" placeholder="123456:ABC-xyz..." autocomplete="off"></div>
+          <div class="col-span-2"><label>Chat ID</label><input type="text" id="conf-tg-chat" placeholder="-1001234567890" autocomplete="off"></div>
+          <div class="col-span-2"><p class="hint" style="margin:0;"><i class="fa-solid fa-circle-info"></i> Mengirim notifikasi otomatis ke grup Telegram: pelanggan baru/diubah/dihapus, ubah status, restart ONU, perubahan akun, dan import data. Klik simpan untuk mengirim pesan uji.</p></div>
+          <div class="col-span-2"><button class="btn btn-outline-primary" style="width:100%; color:#38bdf8; border-color:#38bdf8;" onclick="saveTelegramSettings()"><i class="fa-solid fa-paper-plane"></i> Simpan & Kirim Uji</button></div>
+        </div>
+      </div>
+
+      <!-- Operasional Data -->
+      <div class="card" style="border-left: 4px solid #BF5AF2; margin-bottom:16px;">
+        <div class="card-header"><span class="card-title" style="color:#BF5AF2;"><i class="fa-solid fa-database"></i> Operasional Data</span></div>
+        <div style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:12px;">
+          <button class="btn btn-sm btn-emerald" onclick="window.open('api.php?action=backup_db','_blank')"><i class="fa-solid fa-download"></i> Backup Database</button>
+          <button class="btn btn-sm btn-rose" onclick="clearAudit()"><i class="fa-solid fa-trash"></i> Bersihkan Log</button>
+        </div>
+        <label>Import Pelanggan <span class="hint">(format per baris: nama;paket;sn;idpppoe;port;lat;lng — lat/lng opsional)</span></label>
+        <textarea id="import-text" rows="3" style="font-family:monospace; font-size:12px; margin-top:4px;" placeholder="Contoh:&#10;MAWAR SEJATI;50;ZTEGD6D940BB;121251720200@supernovanet;1/2/7:18;-8.6499;115.2201"></textarea>
+        <button class="btn btn-sm btn-amber" style="width:100%; color:#000; margin-top:8px;" onclick="importCustomers()"><i class="fa-solid fa-file-import"></i> Import Data</button>
+      </div>
+
+      <!-- Tambah User -->
+      <div class="card" style="border-left: 4px solid #30D158;">
+        <div class="card-header"><span class="card-title" style="color:#30D158;"><i class="fa-solid fa-user-plus"></i> Tambah User Aplikasi</span></div>
+        <div class="form-grid">
+          <div class="col-span-2"><label>Username</label><input type="text" id="admin-username" placeholder="Username baru..." autocomplete="off"></div>
+          <div class="col-span-2"><label>Password</label><input type="password" id="admin-password" placeholder="Minimal 6 karakter..." autocomplete="off"></div>
+          <div class="col-span-2">
+            <label>Role Akses</label>
+            <select id="admin-role">
+              <option value="admin">Admin (Full Akses)</option>
+              <option value="readonly" selected>Read-Only (Hanya Lihat)</option>
+            </select>
+          </div>
+          <div class="col-span-2"><button class="btn btn-emerald" style="width:100%; padding:10px;" onclick="saveUserDB()"><i class="fa-solid fa-user-plus"></i> Tambah Akun</button></div>
+        </div>
+      </div>
+    </div>
+    
+    <div>
       <!-- Audit Log -->
       <div class="card" style="padding:0; overflow:hidden;">
         <div style="display:flex; justify-content:space-between; align-items:center; padding:12px 14px; border-bottom:1px solid var(--border);">
-          <span class="card-title" style="margin:0; color:#6ee7b7;"><i class="fa-solid fa-book"></i> Audit Log</span>
+          <span class="card-title" style="margin:0; color:#63e6a5;"><i class="fa-solid fa-book"></i> Audit Log</span>
           <button class="btn btn-sm btn-outline-primary" onclick="loadAudit()"><i class="fa-solid fa-rotate"></i> Muat Ulang</button>
         </div>
         <div style="max-height:420px; overflow-y:auto;">
@@ -707,29 +852,40 @@ $default_tab = 'dashboard';
   </div>
   <?php endif; ?>
 
-</div>
+  </div>
+  </div><!-- /.main -->
+</div><!-- /.app-shell -->
 
 <!-- MODAL EDIT / TAMBAH DATA PELANGGAN -->
 <div id="edit-modal" class="modal-overlay hidden">
   <div class="modal-card">
-    <h3 id="edit-modal-title" style="margin-top:0; margin-bottom:18px; color:#818cf8;">Edit Data Pelanggan</h3>
+    <h3 id="edit-modal-title" style="margin-top:0; margin-bottom:18px; color:#64D2FF;">Edit Data Pelanggan</h3>
     <input type="hidden" id="edit-id">
     <div style="margin-bottom:12px;"><label>Nama Pelanggan</label><input type="text" id="edit-nama"></div>
     <div style="margin-bottom:12px;">
       <label>Paket (Mbps) <span id="edit-paket-status" style="font-weight:normal; font-size:11px; color:var(--muted);"></span></label>
       <select id="edit-paket"><option value="30">30 Mbps</option></select>
     </div>
-    <div style="margin-bottom:12px;"><label>SN ONT</label><input type="text" id="edit-sn" style="color:#fcd34d" placeholder="Contoh: ZTEGD6D940BB"></div>
+    <div style="margin-bottom:12px;"><label>SN ONT</label><input type="text" id="edit-sn" style="color:#ffc15e" placeholder="Contoh: ZTEGD6D940BB"></div>
     <div style="margin-bottom:12px;">
       <label>ID PPPoE</label>
       <div style="display:flex; gap:8px;">
-        <input type="text" id="edit-id-pppoe" style="color:#6ee7b7; flex:1;" placeholder="Contoh: 121251720115@supernovanet">
+        <input type="text" id="edit-id-pppoe" style="color:#63e6a5; flex:1;" placeholder="Contoh: 121251720115@supernovanet">
         <button type="button" id="btn-edit-generate" class="btn btn-muted" style="padding:8px 12px; white-space:nowrap;" onclick="generateEditPppoe()" title="Auto-generate ID unik (dicek ke MikroTik + database)"><i class="fa-solid fa-wand-magic-sparkles"></i> Generate</button>
       </div>
       <div id="edit-pppoe-status" style="font-size:11px; margin-top:4px; color:var(--muted); min-height:14px;"></div>
     </div>
     <div style="margin-bottom:12px;"><label>Password PPPoE</label><input type="text" id="edit-pppoe-pass" value="supernova" style="color:#fbbf24"></div>
     <div style="margin-bottom:12px;"><label>Port OLT</label><input type="text" id="edit-port" placeholder="Contoh: 1/2/8:1 (atau kosongkan)"></div>
+    <div style="margin-bottom:12px;">
+      <label>Latitude (koordinat peta)</label>
+      <div style="display:flex; gap:8px;">
+        <input type="text" id="edit-lat" placeholder="Contoh: 8.341083°S" style="color:#7dd4ff; flex:1;" oninput="editCoordPreview()">
+        <button type="button" class="btn btn-muted" style="padding:8px 12px; white-space:nowrap;" onclick="geoPickFromMap()" title="Ambil titik dari peta"><i class="fa-solid fa-location-crosshairs"></i> Pilih</button>
+      </div>
+    </div>
+    <div style="margin-bottom:12px;"><label>Longitude (koordinat peta)</label><input type="text" id="edit-lng" placeholder="Contoh: 116.038155°E" style="color:#7dd4ff" oninput="editCoordPreview()"></div>
+    <div id="edit-coord-hint" class="hint" style="margin-bottom:12px; min-height:14px;"></div>
     <div style="margin-bottom:20px;">
       <label>Status</label>
       <select id="edit-status">
@@ -751,10 +907,38 @@ $default_tab = 'dashboard';
   </div>
 </div>
 
+<!-- MODAL PILIH KOORDINAT DARI PETA -->
+<div id="pick-map-modal" class="modal-overlay hidden">
+  <div class="modal-card modal-card-lg">
+    <h3 style="margin-top:0; margin-bottom:6px; color:#64D2FF;"><i class="fa-solid fa-location-crosshairs"></i> Pilih Titik di Peta</h3>
+    <p class="hint" style="margin:0 0 12px;">Geser marker ke lokasi pelanggan, lalu klik "Pakai Titik Ini".</p>
+    <div id="pick-map" style="height:360px; border-radius:12px; overflow:hidden; border:1px solid rgba(255,255,255,.1); background:#0a0a0f;"></div>
+    <div style="display:flex; align-items:center; gap:12px; margin-top:12px; font-family:monospace; font-size:13px; flex-wrap:wrap;">
+      <span style="color:var(--muted);">Latitude: <b id="pick-lat" style="color:#7dd4ff">-8.6472000</b></span>
+      <span style="color:var(--muted);">Longitude: <b id="pick-lng" style="color:#7dd4ff">115.2077000</b></span>
+    </div>
+    <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:14px;">
+      <button class="btn btn-muted" onclick="geoPickCancel()">Batal</button>
+      <button class="btn btn-emerald" onclick="geoPickApply()"><i class="fa-solid fa-location-dot"></i> Pakai Titik Ini</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL DETAIL PELANGGAN -->
+<div id="detail-modal" class="modal-overlay hidden">
+  <div class="modal-card modal-card-lg" style="max-width:720px;">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
+      <h3 style="margin:0; color:#64D2FF;"><i class="fa-solid fa-circle-info"></i> Detail Pelanggan</h3>
+      <button class="btn btn-muted" onclick="closeDetailModal()">Tutup</button>
+    </div>
+    <div id="detail-body"></div>
+  </div>
+</div>
+
 <!-- MODAL EDIT AKUN ADMIN -->
 <div id="edit-user-modal" class="modal-overlay hidden">
   <div class="modal-card">
-    <h3 style="margin-top:0; margin-bottom:18px; color:#fcd34d;"><i class="fa-solid fa-user-pen"></i> Edit Akun Admin</h3>
+    <h3 style="margin-top:0; margin-bottom:18px; color:#ffc15e;"><i class="fa-solid fa-user-pen"></i> Edit Akun Admin</h3>
     <input type="hidden" id="edit-user-id">
     <div style="margin-bottom:12px;"><label>Username</label><input type="text" id="edit-user-username" autocomplete="off"></div>
     <div style="margin-bottom:12px;"><label>Password Baru <span style="color:var(--muted); font-weight:normal;">(Kosongkan jika tak diubah)</span></label><input type="password" id="edit-user-password" placeholder="***" autocomplete="off"></div>
@@ -829,6 +1013,15 @@ function switchTab(tab) {
   const tBtn = document.getElementById('tab-' + tab);
   if(tView) tView.classList.remove('hidden');
   if(tBtn) tBtn.classList.add('active');
+
+  const titles = {
+    dashboard: 'Dashboard', broadband: 'Broadband', mikrotik: 'MikroTik PPPoE',
+    pelanggan: 'Data Pelanggan', monitoring: 'Monitoring', admin: 'Kelola Admin'
+  };
+  const tt = document.getElementById('topbar-title');
+  if (tt) tt.textContent = titles[tab] || 'Dashboard';
+  // tutup sidebar di mobile
+  document.body.classList.remove('sidebar-open');
   
   if (tab === 'dashboard') loadDashboard();
   if (tab === 'pelanggan') renderCustomers();
@@ -837,6 +1030,10 @@ function switchTab(tab) {
   if (tab === 'admin') { loadUsersDB(); loadOltSettings(); loadMikrotikSettings(); loadAudit(); }
 
   try { localStorage.setItem('supernova_active_tab', tab); } catch(e) {}
+}
+
+function toggleSidebar() {
+  document.body.classList.toggle('sidebar-open');
 }
 
 async function loadDataDB() {
@@ -902,11 +1099,11 @@ attachSearchClear('mon-search', filterMonitoring);
 
 function statusBadge(st) {
   const map = {
-    'Aktif':  ['Aktif', '#34d399', '#10b981', 'rgba(16,185,129,0.15)'],
-    'Isolir': ['Isolir', '#fcd34d', '#f59e0b', 'rgba(245,158,11,0.12)'],
-    'Cabut':  ['Cabut', '#fda4af', '#f43f5e', 'rgba(244,63,94,0.12)']
+    'Aktif':  ['Aktif', '#63e6a5', '#30D158', 'rgba(48,209,88,0.15)'],
+    'Isolir': ['Isolir', '#ffc15e', '#FF9F0A', 'rgba(255,159,10,0.12)'],
+    'Cabut':  ['Cabut', '#ff8d86', '#FF453A', 'rgba(255,69,58,0.12)']
   };
-  const m = map[st] || [st, '#94a3b8', '#64748b', 'rgba(100,116,139,0.15)'];
+  const m = map[st] || [st, '#98989f', '#63636b', 'rgba(255,255,255,0.08)'];
   return `<span class="badge" style="color:${m[1]};border-color:${m[2]};background:${m[3]};">${esc(m[0])}</span>`;
 }
 
@@ -1099,10 +1296,10 @@ function renderCustomers() {
       <tr>
         <td style="font-family:monospace; color:var(--muted)">${esc(String(c.id_pppoe || '').split('@')[0] || '-')}</td>
         <td style="font-weight:600">${esc(c.client)}</td>
-        <td style="font-family:monospace; color:#a5b4fc; white-space:nowrap;" title="${esc(c.paket_profile || (c.paket + ' Mbps'))}">${esc(c.paket_profile || (c.paket + ' Mbps'))}</td>
-        <td style="font-family:monospace; color:#fcd34d">${esc(c.sn || '-')}</td>
+        <td style="font-family:monospace; color:#64D2FF; white-space:nowrap;" title="${esc(c.paket_profile || (c.paket + ' Mbps'))}">${esc(c.paket_profile || (c.paket + ' Mbps'))}</td>
+        <td style="font-family:monospace; color:#ffc15e">${esc(c.sn || '-')}</td>
         <td style="font-family:monospace">${esc(c.id_pppoe)}</td>
-        <td style="font-family:monospace; color:${validPort ? '#6ee7b7' : '#fda4af'}">${esc(c.port)}</td>
+        <td style="font-family:monospace; color:${validPort ? '#63e6a5' : '#ff8d86'}">${esc(c.port)}</td>
         <td style="white-space:nowrap;">
           ${statusBadge(c.status)}
             <select class="admin-only" style="width:auto; padding:2px 4px; font-size:11px; margin-left:6px; vertical-align:middle;" onchange="setCustomerStatus(${c.id}, this.value)">
@@ -1118,6 +1315,7 @@ function renderCustomers() {
             <button class="btn btn-sm btn-rose admin-only" title="Restart ONT Pelanggan" onclick="reqOLT('reboot', '${jsStr(c.port)}')"><i class="fa-solid fa-rotate-right"></i></button>
           ` : ''}
           <button class="btn btn-sm btn-outline-primary" title="Muat Parameter" onclick="loadCustomer(${c.id})"><i class="fa-solid fa-arrow-up-right-from-square"></i></button>
+          <button class="btn btn-sm btn-emerald" title="Detail & Lokasi di Peta" onclick="openDetailModal(${c.id})"><i class="fa-solid fa-circle-info"></i></button>
           <button class="btn btn-sm btn-outline-primary" title="Riwayat" onclick="showHistory(${c.id})"><i class="fa-solid fa-clock-rotate-left"></i></button>
           <button class="btn btn-sm btn-amber admin-only" title="Edit" onclick="openEditModal(${c.id})"><i class="fa-solid fa-pen"></i></button>
           <button class="btn btn-sm btn-rose admin-only" title="Hapus" onclick="deleteCustomer(${c.id})"><i class="fa-solid fa-trash"></i></button>
@@ -1193,9 +1391,9 @@ function colorizePower(text) {
   const safe = esc(text);
   let out = safe.replace(/(-?\d+(?:\.\d+)?)\s*(dBm|dB)/gi, (m, num, unit) => {
     const v = parseFloat(num);
-    let color = '#fda4af';   // buruk (di bawah -25 dBm) default merah
+    let color = '#ff8d86';   // buruk (di bawah -25 dBm) default merah
     if (v >= -8 && v <= -25) color = '#4ade80';   // bagus
-    else if (v > -8 && v <= -1) color = '#fcd34d'; // kelebihan daya (kuning/warning)
+    else if (v > -8 && v <= -1) color = '#ffc15e'; // kelebihan daya (kuning/warning)
     return `<span style="color:${color}; font-weight:700;">${num} ${unit}</span>`;
   });
   if (/att|rx|receive|power|dBm/i.test(text)) {
@@ -1487,15 +1685,113 @@ const FALLBACK_PAKET = [10, 20, 30, 50, 100, 200];
 
 // Muat daftar paket dari profile PPPoE MikroTik (nama profile asli, mis. 'Bisnis 50M').
 // Bila router off, pakai daftar standar (Mbps).
+// Layer peta dasar: Satelit (Google, fallback Esri) + Jalan (OSM), dengan kontrol toggle
+function createSatLayer() {
+  const l = L.tileLayer('https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}', {
+    attribution: '&copy; Google', maxZoom: 19
+  });
+  let fails = 0;
+  l.on('tileerror', () => {
+    fails++;
+    if (fails >= 6) {
+      l.setUrl('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', 'Tiles &copy; Esri — Maxar, Earthstar Geographics');
+    }
+  });
+  return l;
+}
+
+function addBaseLayers(map, defaultLayer) {
+  const layers = {
+    'Satelit': createSatLayer(),
+    'Jalan': L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; OpenStreetMap', maxZoom: 19
+    })
+  };
+  (layers[defaultLayer] || layers['Satelit']).addTo(map);
+  L.control.layers(layers, null, { position: 'topright', collapsed: false }).addTo(map);
+  return layers;
+}
+
+// Parser koordinat fleksibel: "8.341083", "-8.341083", "8.341083°S", "8°20'27.9\"S", "116.038155°E"
+function parseCoord(input) {  const s = String(input ?? '').trim();
+  if (!s) return NaN;
+  let neg = 1;
+  if (/[SW]/i.test(s)) neg = -1;                       // Selatan / Barat => negatif
+  let clean = s.replace(/[°˚′'`"]/g, ' ').replace(/[NSWE]/gi, ' ').replace(/[^0-9.\s-]/g, ' ');
+  const nums = clean.split(/\s+/).filter(Boolean).map(Number);
+  if (!nums.length || nums.some(isNaN)) return NaN;
+  let val;
+  if (nums.length === 1) val = nums[0];
+  else if (nums.length === 2) val = nums[0] + nums[1] / 60;
+  else if (nums.length >= 3) val = nums[0] + nums[1] / 60 + nums[2] / 3600;
+  else return NaN;
+  return neg < 0 ? -Math.abs(val) : val;
+}
+
+function editCoordPreview() {
+  const h = document.getElementById('edit-coord-hint');
+  if (!h) return;
+  const lat = parseCoord(document.getElementById('edit-lat').value);
+  const lng = parseCoord(document.getElementById('edit-lng').value);
+  if (isFinite(lat) && isFinite(lng) && lat !== 0 && lng !== 0) {
+    if (lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180) {
+      h.innerHTML = '<i class="fa-solid fa-circle-check" style="color:#63e6a5;"></i> <span style="color:#63e6a5;">Koordinat valid:</span> ' + lat.toFixed(7) + ', ' + lng.toFixed(7);
+    } else {
+      h.innerHTML = '<i class="fa-solid fa-triangle-exclamation" style="color:#ffc15e;"></i> <span style="color:#ffc15e;">Latitude -90..90 · Longitude -180..180</span>';
+    }
+  } else if (document.getElementById('edit-lat').value !== '' || document.getElementById('edit-lng').value !== '') {
+    h.innerHTML = '<span style="color:var(--muted);">Isi keduanya — contoh: <b>8.341083°S</b> dan <b>116.038155°E</b></span>';
+  } else {
+    h.innerHTML = '';
+  }
+}
+
+// Pilih titik koordinat dari peta (modal picker)
+function geoPickFromMap() {
+  const curLat = parseFloat(document.getElementById('edit-lat').value) || -8.6472;
+  const curLng = parseFloat(document.getElementById('edit-lng').value) || 115.2077;
+  document.getElementById('pick-map-modal').classList.remove('hidden');
+  requestAnimationFrame(() => {
+    if (!window._pickMap) {
+      window._pickMap = L.map('pick-map').setView([curLat, curLng], 15);
+      addBaseLayers(window._pickMap, 'Satelit');
+      window._pickMarker = L.marker([curLat, curLng], { draggable: true }).addTo(window._pickMap);
+      window._pickMarker.on('dragend', () => {
+        const p = window._pickMarker.getLatLng();
+        document.getElementById('pick-lat').textContent = p.lat.toFixed(7);
+        document.getElementById('pick-lng').textContent = p.lng.toFixed(7);
+      });
+    } else {
+      window._pickMap.setView([curLat, curLng], 15);
+      window._pickMarker.setLatLng([curLat, curLng]);
+      document.getElementById('pick-lat').textContent = curLat.toFixed(7);
+      document.getElementById('pick-lng').textContent = curLng.toFixed(7);
+    }
+    setTimeout(() => window._pickMap.invalidateSize(), 150);
+  });
+}
+function geoPickCancel() { document.getElementById('pick-map-modal').classList.add('hidden'); }
+function geoPickApply() {
+  document.getElementById('edit-lat').value = document.getElementById('pick-lat').textContent;
+  document.getElementById('edit-lng').value = document.getElementById('pick-lng').textContent;
+  editCoordPreview();
+  geoPickCancel();
+}
+
 async function loadEditPaketOptions(selected) {
   const select = document.getElementById('edit-paket');
   const statusEl = document.getElementById('edit-paket-status');
   selected = String(selected || '');
   const renderNumeric = () => {
     select.innerHTML = FALLBACK_PAKET.map(p => `<option value="${p}">${p} Mbps</option>`).join('');
-    const sel = /^\d+$/.test(selected) ? selected : '30';
-    if (!FALLBACK_PAKET.includes(Number(sel))) select.innerHTML += `<option value="${sel}" selected>${sel} Mbps</option>`;
-    select.value = sel;
+    if (selected && !/^\d+$/.test(selected)) {
+      // Mode edit: nama profile lama tetap dipertahankan walau router tidak terhubung
+      select.innerHTML += `<option value="${esc(selected)}" selected>${esc(selected)}</option>`;
+    } else {
+      const sel = /^\d+$/.test(selected) ? selected : '30';
+      if (!FALLBACK_PAKET.includes(Number(sel))) select.innerHTML += `<option value="${sel}" selected>${sel} Mbps</option>`;
+      select.value = sel;
+    }
   };
   if (statusEl) statusEl.textContent = 'memuat profile MikroTik...';
   try {
@@ -1503,10 +1799,19 @@ async function loadEditPaketOptions(selected) {
     const json = await res.json();
     if (json.status === 'success' && Array.isArray(json.data) && json.data.length) {
       select.innerHTML = json.data.map(p => `<option value="${esc(p)}">${esc(p)}</option>`).join('');
-      if (selected && json.data.indexOf(selected) === -1) {
-        select.innerHTML += `<option value="${esc(selected)}" selected>${esc(selected)}</option>`;
+      if (selected) {
+        const found = Array.from(select.options).some(o => o.value === selected);
+        if (found) {
+          select.value = selected;
+        } else {
+          // Paket lama tidak ada di daftar MikroTik: TETAP dipilih, jangan ganti ke profile lain
+          const label = /^\d+$/.test(selected) ? selected + ' Mbps' : selected;
+          select.innerHTML += `<option value="${esc(selected)}" selected>${esc(label)}</option>`;
+        }
+      } else {
+        // Tambah baru tanpa default: pilih profile pertama sebagai bawaan
+        select.value = select.options[0].value;
       }
-      select.value = selected && json.data.indexOf(selected) !== -1 ? selected : json.data[0];
       if (statusEl) statusEl.textContent = 'dari profile MikroTik';
     } else {
       renderNumeric();
@@ -1526,6 +1831,9 @@ function openAddModal() {
   document.getElementById('edit-id-pppoe').value = '';
   document.getElementById('edit-pppoe-pass').value = 'supernova';
   document.getElementById('edit-port').value = '';
+  document.getElementById('edit-lat').value = '';
+  document.getElementById('edit-lng').value = '';
+  editCoordPreview();
   document.getElementById('edit-status').value = 'Aktif';
   document.getElementById('edit-modal-title').textContent = 'Tambah Pelanggan Baru';
   document.getElementById('edit-mk-create-wrap').style.display = 'flex';
@@ -1545,6 +1853,9 @@ function openEditModal(id) {
   document.getElementById('edit-id-pppoe').value = c.id_pppoe;
   document.getElementById('edit-pppoe-pass').value = 'supernova';
   document.getElementById('edit-port').value = c.port;
+  document.getElementById('edit-lat').value = (c.latitude && c.latitude != 0) ? c.latitude : '';
+  document.getElementById('edit-lng').value = (c.longitude && c.longitude != 0) ? c.longitude : '';
+  editCoordPreview();
   document.getElementById('edit-status').value = c.status || 'Aktif';
   document.getElementById('edit-modal-title').textContent = 'Edit Data Pelanggan';
   document.getElementById('edit-mk-create-wrap').style.display = 'none';
@@ -1565,6 +1876,8 @@ async function saveEditCustomerDB() {
     sn: document.getElementById('edit-sn').value.trim().toUpperCase() || '-',
     id_pppoe: document.getElementById('edit-id-pppoe').value.trim(),
     port: document.getElementById('edit-port').value.trim() || 'BELUM ADA',
+    latitude: parseCoord(document.getElementById('edit-lat').value) || '',
+    longitude: parseCoord(document.getElementById('edit-lng').value) || '',
     status: document.getElementById('edit-status').value
   };
   if (id) data.id = parseInt(id);
@@ -1725,7 +2038,7 @@ async function importCustomers() {
     if (!line) return;
     const p = line.split(';').map(x => x.trim());
     if (p.length < 2) return;
-    rows.push({ client: p[0], paket: p[1], sn: p[2] || '-', id_pppoe: p[3] || '', port: p[4] || 'BELUM ADA' });
+    rows.push({ client: p[0], paket: p[1], sn: p[2] || '-', id_pppoe: p[3] || '', port: p[4] || 'BELUM ADA', latitude: p[5] || '', longitude: p[6] || '' });
   });
   if (!rows.length) return alert('Format tidak dikenali.');
   if (!confirm('Import ' + rows.length + ' baris? Data dengan ID PPPoE duplikat akan dilewati.')) return;
@@ -1751,11 +2064,19 @@ async function loadUsersDB() {
 function renderUsers() {
   const tbody = document.getElementById('users-tbody');
   if(!tbody) return;
+  const chip1 = document.getElementById('users-count-chip');
+  const chip2 = document.getElementById('admin-count-chip');
+  if (chip1) chip1.textContent = users_db.length + ' Akun';
+  if (chip2) chip2.textContent = users_db.length;
+  if (!users_db.length) {
+    tbody.innerHTML = '<tr><td colspan="3" style="color:var(--muted); text-align:center; padding:18px;">Belum ada akun</td></tr>';
+    return;
+  }
   tbody.innerHTML = users_db.map(u => `
     <tr>
       <td style="font-weight:600; font-family:monospace;">${esc(u.username)}</td>
       <td>
-        <span class="badge" style="${u.role === 'admin' ? 'color:#a5b4fc; border-color:#4f46e5;' : 'color:#fcd34d; border-color:#f59e0b; background:rgba(245,158,11,0.1)'}">
+        <span class="badge" style="${u.role === 'admin' ? 'color:#64D2FF; border-color:#0A84FF;' : 'color:#ffc15e; border-color:#FF9F0A; background:rgba(245,158,11,0.1)'}">
           ${esc(u.role).toUpperCase()}
         </span>
       </td>
@@ -1920,7 +2241,102 @@ async function loadDashboard() {
     document.getElementById('bar-cabut').style.width = Math.round(cabut / base * 100) + '%';
   } catch(e) {}
   loadDashboardRealtime();
+  loadDashboardMap();
 }
+
+// ================= PETA =================
+let dashMap = null, dashMarkers = [];
+
+async function loadDashboardMap() {
+  const el = document.getElementById('dash-map');
+  if (!el) return;
+  try {
+    // Ambil data koordinat + status online/offline dari MikroTik secara paralel
+    const [resMap, resMon] = await Promise.all([
+      fetch('api.php?action=get_map'),
+      fetch('api.php?action=mikrotik_monitor')
+    ]);
+    const j = await resMap.json();
+    const mon = await resMon.json().catch(() => null);
+    const items = (j.data || []).filter(x => x.latitude && x.longitude);
+    const countEl = document.getElementById('dash-map-count');
+    if (countEl) countEl.textContent = items.length + ' titik';
+
+    // Set id_pppoe yang sedang online (monitor sukses), atau null jika router tidak terjangkau
+    let onlineSet = null;
+    if (mon && mon.status === 'success' && Array.isArray(mon.online)) {
+      onlineSet = new Set(mon.online.filter(x => x.online).map(x => String(x.id_pppoe).trim().toLowerCase()));
+    }
+
+    if (!dashMap) {
+      // Tampilan awal: keseluruhan 1 pulau (Lombok)
+      dashMap = L.map('dash-map').setView([-8.65, 116.15], 15);
+      addBaseLayers(dashMap, 'Satelit');
+    }
+    dashMarkers.forEach(m => dashMap.removeLayer(m));
+    dashMarkers = [];
+    const bounds = [];
+    items.forEach(c => {
+      let color = '#FF453A';        // default offline (merah)
+      let label = 'Offline';
+      if (onlineSet) {
+        if (onlineSet.has(String(c.id_pppoe).trim().toLowerCase())) { color = '#30D158'; label = 'Online'; }
+      } else {
+        // router tidak terjangkau: pakai status DB sebagai fallback
+        color = c.status === 'Aktif' ? '#30D158' : c.status === 'Isolir' ? '#FF9F0A' : '#FF453A';
+        label = c.status;
+      }
+      const icon = L.divIcon({
+        className: '',
+        html: `<div style="width:16px;height:16px;border-radius:50%;border:2px solid #fff;background:${color};box-shadow:0 2px 8px rgba(0,0,0,.5);"></div>`,
+        iconSize: [16, 16], iconAnchor: [8, 8]
+      });
+      const m = L.marker([c.latitude, c.longitude], { icon }).addTo(dashMap);
+      m.bindPopup(
+        '<b>' + esc(c.client) + '</b><br>' +
+        (c.paket_profile || c.paket + ' Mbps') + '<br>' +
+        'ID: ' + esc(c.id_pppoe) + '<br>' +
+        'Port: ' + esc(c.port) + '<br>' +
+        (label === 'Online' ? '<span style="color:#63e6a5">🟢 Online</span>' : '<span style="color:#ff8d86">🔴 Offline</span>')
+      );
+      dashMarkers.push(m);
+      bounds.push([c.latitude, c.longitude]);
+    });
+    if (bounds.length) dashMap.fitBounds(bounds, { padding: [50, 50], maxZoom: 15 });
+    else dashMap.setView([-8.65, 116.15], 15);
+    setTimeout(() => dashMap.invalidateSize(), 100);
+  } catch(e) {}
+}
+
+function openDetailModal(id) {
+  const c = customers.find(x => x.id == id) || (window.allCustomers ? window.allCustomers.find(x => x.id == id) : null);
+  if (!c) return alert('Data pelanggan tidak ditemukan. Muat ulang halaman dulu.');
+  const lat = parseFloat(c.latitude) || 0;
+  const lng = parseFloat(c.longitude) || 0;
+  const body = document.getElementById('detail-body');
+  body.innerHTML = `
+    <div class="form-grid" style="margin-bottom:14px;">
+      <div class="col-span-2"><label>Nama Pelanggan</label><div style="font-size:16px; font-weight:800; color:#fff;">${esc(c.client)}</div></div>
+      <div><label>Status</label><div>${statusBadge(c.status)}</div></div>
+      <div><label>Paket</label><div style="color:#fff;">${esc(c.paket_profile || (c.paket + ' Mbps'))}</div></div>
+      <div><label>ID PPPoE</label><div style="font-family:monospace; color:#63e6a5;">${esc(c.id_pppoe)}</div></div>
+      <div><label>Port OLT</label><div style="font-family:monospace; color:#7dd4ff;">${esc(c.port)}</div></div>
+      <div><label>SN ONT</label><div style="font-family:monospace; color:#ffc15e;">${esc(c.sn || '-')}</div></div>
+      <div><label>Koordinat</label><div style="font-family:monospace;">${lat ? lat.toFixed(7) + ', ' + lng.toFixed(7) : '<span style="color:var(--muted)">Belum diisi</span>'}</div></div>
+    </div>
+    ${lat && lng ? '<div id="detail-map" style="height:280px; border-radius:12px; overflow:hidden; border:1px solid rgba(255,255,255,.1);"></div>' : '<div class="alert alert-warn" style="margin-bottom:0;">Pelanggan ini belum punya koordinat. Edit pelanggan lalu isi Latitude/Longitude atau gunakan tombol Pilih di peta.</div>'}
+  `;
+  document.getElementById('detail-modal').classList.remove('hidden');
+  if (lat && lng) {
+    requestAnimationFrame(() => {
+      const dmap = L.map('detail-map').setView([lat, lng], 16);
+      addBaseLayers(dmap, 'Satelit');
+      L.marker([lat, lng]).addTo(dmap).bindPopup(esc(c.client)).openPopup();
+      setTimeout(() => dmap.invalidateSize(), 150);
+    });
+  }
+}
+function closeDetailModal() { document.getElementById('detail-modal').classList.add('hidden'); }
 
 async function loadDashboardRealtime() {
   if (monBusy) return;
@@ -1980,8 +2396,8 @@ function renderDashLists(loading) {
 // ================= MONITORING ONLINE/OFFLINE (MIKROTIK) =================
 function monStatusBadge(online) {
   return online
-    ? '<span class="badge" style="color:#6ee7b7; border-color:#10b981; background:rgba(16,185,129,0.15);">Online</span>'
-    : '<span class="badge" style="color:#fcd34d; border-color:#f59e0b; background:rgba(245,158,11,0.1);">Offline</span>';
+    ? '<span class="badge" style="color:#63e6a5; border-color:#30D158; background:rgba(16,185,129,0.15);">Online</span>'
+    : '<span class="badge" style="color:#ffc15e; border-color:#FF9F0A; background:rgba(245,158,11,0.1);">Offline</span>';
 }
 
 async function loadMonitoring() {
@@ -2017,8 +2433,8 @@ async function loadMonitoring() {
     window.monData = list;
     filterMonitoring();
   } catch (e) {
-    if (onTb) onTb.innerHTML = '<tr><td colspan="6" style="color:#fda4af">Error memuat data monitoring.</td></tr>';
-    if (offTb) offTb.innerHTML = '<tr><td colspan="5" style="color:#fda4af">Error memuat data monitoring.</td></tr>';
+    if (onTb) onTb.innerHTML = '<tr><td colspan="6" style="color:#ff8d86">Error memuat data monitoring.</td></tr>';
+    if (offTb) offTb.innerHTML = '<tr><td colspan="5" style="color:#ff8d86">Error memuat data monitoring.</td></tr>';
   }
 }
 
